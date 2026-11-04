@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ─── عمومی ─── -->
+    <string name="app_name">مانیتور سیگنال شبکه</string>
+    <string name="app_subtitle">پایش لحظه‌ای وضعیت شبکه، اطلاعات دکل‌های مخابراتی و تست سرعت اینترنت</string>
+    <string name="permission_gate">برای نمایش اطلاعات سیم‌کارت، سیگنال و دکل‌ها، مجوزهای «تلفن» و «موقعیت مکانی» را تأیید کنید.</string>
+    <string name="no_data">—</string>
+    <string name="unknown_operator">ناشناخته</string>
+    <string name="roaming_on">فعال (رومینگ بین‌المللی)</string>
+    <string name="roaming_off">غیرفعال (شبکه داخلی)</string>
+    <string name="gauge_unit_dbm">dBm — دسی‌بل‌میل‌وات</string>
+
+    <!-- ─── کارت وضعیت سیگنال و شبکه ─── -->
+    <string name="card_status_title">وضعیت سیگنال و شبکه</string>
+    <string name="label_operator">اپراتور شبکه</string>
+    <string name="label_sim_operator">اپراتور سیم‌کارت</string>
+    <string name="label_sim_state">وضعیت سیم‌کارت</string>
+    <string name="label_country">کشور شبکه</string>
+    <string name="label_roaming">وضعیت رومینگ</string>
+    <string name="label_data_state">وضعیت داده</string>
+    <string name="label_data_activity">فعالیت داده</string>
+    <string name="label_modems">تعداد مودم‌های فعال</string>
+
+    <!-- ─── کارت جزئیات سیگنال ─── -->
+    <string name="card_signal_title">جزئیات قدرت سیگنال</string>
+    <string name="label_dbm">قدرت سیگنال (dBm)</string>
+    <string name="label_asu">ASU</string>
+    <string name="label_level">سطح سیگنال</string>
+    <string name="label_rsrp">RSRP</string>
+    <string name="label_rsrq">RSRQ</string>
+    <string name="label_snr">SNR</string>
+    <string name="label_rssi">RSSI</string>
+
+    <!-- ─── کارت دکل متصل ─── -->
+    <string name="card_tower_title">دکل متصل (سروینگ)</string>
+    <string name="label_rat">نسل و نوع شبکه</string>
+    <string name="label_pci">PCI / PSC</string>
+    <string name="label_cid">CID / NCI</string>
+    <string name="label_tac">TAC / LAC</string>
+    <string name="label_earfcn">EARFCN / ARFCN</string>
+    <string name="label_mccmnc">MCC / MNC</string>
+    <string name="label_bandwidth">پهنای باند</string>
+    <string name="neighbors_title">سلول‌های اطراف</string>
+    <string name="no_cells">هنوز اطلاعاتی از سلول‌ها دریافت نشده است…</string>
+    <string name="tag_serving">سروینگ</string>
+    <string name="tag_neighbor">همسایه</string>
+
+    <!-- ─── کارت فاصله تا دکل ─── -->
+    <string name="card_distance_title">فاصله تا دکل (OpenCelliD)</string>
+    <string name="btn_locate">محاسبه فاصله با GPS</string>
+    <string name="label_distance">فاصله تخمینی تا دکل</string>
+    <string name="label_bearing">جهت دکل</string>
+    <string name="label_gps">مختصات شما</string>
+    <string name="hint_api_key">کلید API سرویس OpenCelliD</string>
+    <string name="btn_save_key">ذخیره کلید</string>
+    <string name="distance_na">برای محاسبه فاصله، دکمه بالا را بزنید.</string>
+    <string name="msg_getting_gps">در حال دریافت موقعیت GPS…</string>
+    <string name="msg_querying_opencellid">در حال پرس‌وجوی موقعیت دکل از OpenCelliD…</string>
+    <string name="err_gps_failed">دریافت موقعیت GPS ناموفق بود.</string>
+    <string name="err_no_key">ابتدا کلید API خود را از opencellid.org دریافت و در کادر زیر ذخیره کنید.</string>
+    <string name="err_no_cell">اطلاعات عددی دکل متصل در دسترس نیست؛ لحظه‌ای بعد دوباره تلاش کنید.</string>
+    <string name="err_nr_distance">محاسبه فاصله برای شبکه 5G در OpenCelliD پشتیبانی نمی‌شود.</string>
+    <string name="msg_key_saved">کلید API ذخیره شد.</string>
+    <string name="msg_key_empty">کلید API را وارد کنید.</string>
+    <string name="err_generic">خطا: %1$s</string>
+
+    <!-- ─── کارت سیم‌کارت‌ها ─── -->
+    <string name="card_sim_title">اطلاعات سیم‌کارت‌ها (Dual SIM)</string>
+    <string name="sim_count_fmt">تعداد سیم‌کارت‌های فعال: %1$d</string>
+    <string name="sim_row_fmt">سیم‌کارت %1$d (اسلات %2$d) — اپراتور: %3$s — شبکه: %4$s</string>
+    <string name="sim_none">هیچ سیم‌کارتی فعال نیست.</string>
+    <string name="sim_no_permission">نمایش اطلاعات سیم‌کارت‌ها نیازمند مجوز «وضعیت تلفن» است.</string>
+
+    <!-- ─── کارت تست سرعت ─── -->
+    <string name="card_speed_title">تست سرعت اینترنت</string>
+    <string name="btn_start_speed">شروع تست سرعت</string>
+    <string name="btn_stop_speed">لغو تست</string>
+    <string name="label_ping">پینگ</string>
+    <string name="label_download">دانلود</string>
+    <string name="label_upload">آپلود</string>
+    <string name="speed_status_idle">آماده اجرای تست…</string>
+    <string name="speed_status_running">در حال اجرای تست سرعت…</string>
+    <string name="speed_status_done">تست سرعت کامل شد.</string>
+    <string name="speed_status_error">خطا در تست سرعت</string>
+    <string name="speed_no_internet">اتصال اینترنت یافت نشد؛ ابتدا به شبکه متصل شوید.</string>
+</resources>

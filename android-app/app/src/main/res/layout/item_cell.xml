@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="4dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="10dp">
+
+    <!-- نشان نسل شبکه (2G/3G/4G/5G) -->
+    <TextView
+        android:id="@+id/tvCellBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="46dp"
+        android:gravity="center"
+        android:textColor="@color/gen_4g"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        tools:text="4G" />
+
+    <!-- نوع RAT و شناسه‌های سلول -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvCellRat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="LTE • سروینگ" />
+
+        <TextView
+            android:id="@+id/tvCellIds"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            tools:text="PCI/PSC: ۱۲۳ | CID/NCI: ۲۲۴۴۵۵&#10;TAC/LAC: ۳۲۱ | EARFCN/ARFCN: ۱۳۰۰" />
+    </LinearLayout>
+
+    <!-- سیگنال و فاصله -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:gravity="end"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvCellDbm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/sig_good"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="-87 dBm" />
+
+        <TextView
+            android:id="@+id/tvCellDistance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            tools:text="۱٫۲ کیلومتر" />
+    </LinearLayout>
+</LinearLayout>
