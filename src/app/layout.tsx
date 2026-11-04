@@ -17,6 +17,18 @@ export const metadata: Metadata = {
     "speed test",
     "signal monitor",
   ],
+  manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "مانیتور سیگنال شبکه",
+    description:
+      "تست سرعت واقعی، کیفیت سیگنال، آنتن و اپ اندروید نمایش دکل مخابراتی و فاصله تا دکل",
+    type: "website",
+    locale: "fa_IR",
+  },
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -48,7 +60,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-background text-foreground min-h-screen">
         {children}
-        <Toaster />
+        <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
   );

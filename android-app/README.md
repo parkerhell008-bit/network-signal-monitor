@@ -34,7 +34,7 @@
 | `ACCESS_FINE_LOCATION` و `ACCESS_COARSE_LOCATION` | از اندروید ۱۰ به بعد، خواندن `CellInfo` (شناسهٔ دکل‌ها) نیازمند مجوز موقعیت است؛ همچنین برای محاسبهٔ فاصله تا دکل با GPS لازم است. |
 | `INTERNET` | تست سرعت (سرورهای Cloudflare) و پرس‌وجوی موقعیت دکل از OpenCelliD. |
 | `ACCESS_NETWORK_STATE` | تشخیص اتصال اینترنت پیش از شروع تست سرعت. |
-| `ACCESS_WIFI_STATE` | بررسی وضعیت اتصال شبکه‌ای دستگاه. |
+| `ACCESS_WIFI_STATE` | فقط برای پایش وضعیت Wi-Fi در برخی OEMها؛ منطق اصلی با `ACCESS_NETWORK_STATE` است. |
 
 بدون تأیید مجوزها، کارت‌های مرتبط پیام راهنما نشان می‌دهند و مجوزها با `registerForActivityResult` در همان اجرای اول درخواست می‌شوند.
 

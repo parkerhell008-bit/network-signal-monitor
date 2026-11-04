@@ -99,6 +99,7 @@ export function useSpeedTest() {
       if (!res.ok || !res.body) throw new Error("خطا در شروع تست دانلود");
       const reader = res.body.getReader();
       let lastTick = dlStart;
+      let timedOut = false;
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -107,36 +108,63 @@ export function useSpeedTest() {
         const now = performance.now();
         if (now - lastTick > 100 && mounted.current) {
           const secs = (now - dlStart) / 1000;
+          // پیشرفت بر اساس بایت دریافتی واقعی (۱۵ تا ۷۵٪)
+          const byBytes = (received / DOWNLOAD_BYTES) * 60;
+          const byTime = ((now - dlStart) / 15000) * 60;
           setState((s) => ({
             ...s,
             liveMbps: (received * 8) / secs / 1_000_000,
-            progress: 15 + Math.min(60, ((now - dlStart) / 9000) * 60),
+            progress: 15 + Math.min(60, Math.max(byBytes, byTime)),
           }));
           lastTick = now;
         }
         // سقف ۱۵ ثانیه برای فاز دانلود
         if (performance.now() - dlStart > 15_000) {
-          await reader.cancel();
+          timedOut = true;
+          await reader.cancel().catch(() => {});
           break;
         }
       }
       const dlSecs = (performance.now() - dlStart) / 1000;
+      // اگر در میانه قطع شد، حجم واقعی دریافتی ملاک است نه حجم کامل
       const downloadMbps = (received * 8) / dlSecs / 1_000_000;
       if (!mounted.current) return;
-      setState((s) => ({ ...s, downloadMbps, phase: "upload", liveMbps: 0 }));
+      setState((s) => ({
+        ...s,
+        downloadMbps,
+        phase: "upload",
+        liveMbps: 0,
+        progress: timedOut ? 75 : Math.min(75, 15 + (received / DOWNLOAD_BYTES) * 60),
+      }));
 
       /* ---------- فاز ۳: آپلود ---------- */
       const upBlob = new Blob([new Uint8Array(UPLOAD_BYTES)], {
         type: "application/octet-stream",
       });
       const upStart = performance.now();
-      await fetch(`/api/speedtest/upload?t=${Date.now()}`, {
-        method: "POST",
-        body: upBlob,
-        cache: "no-store",
-        signal,
-        headers: { "Content-Type": "application/octet-stream" },
-      });
+      const upTimer = mounted.current
+        ? window.setInterval(() => {
+            if (!mounted.current || signal.aborted) return;
+            const elapsed = performance.now() - upStart;
+            // پیشرفت زمان‌محور آپلود (۷۵ تا ۹۸٪، انتظار حدود ۶ ثانیه)
+            setState((s) => ({
+              ...s,
+              progress: 75 + Math.min(23, (elapsed / 6000) * 23),
+              liveMbps: (UPLOAD_BYTES * 8) / (Math.max(elapsed, 1) / 1000) / 1_000_000,
+            }));
+          }, 150)
+        : null;
+      try {
+        await fetch(`/api/speedtest/upload?t=${Date.now()}`, {
+          method: "POST",
+          body: upBlob,
+          cache: "no-store",
+          signal,
+          headers: { "Content-Type": "application/octet-stream" },
+        });
+      } finally {
+        if (upTimer) clearInterval(upTimer);
+      }
       const upSecs = (performance.now() - upStart) / 1000;
       const uploadMbps = (UPLOAD_BYTES * 8) / upSecs / 1_000_000;
       if (!mounted.current) return;

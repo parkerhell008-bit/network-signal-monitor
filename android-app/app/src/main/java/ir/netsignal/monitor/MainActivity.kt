@@ -55,6 +55,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -278,7 +279,14 @@ class MainActivity : AppCompatActivity() {
         val locationGranted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         when {
-            phoneGranted -> startAll()
+            phoneGranted -> {
+                startAll()
+                // اگر موقعیت رد شده باشد، API 30+ لیست سلول‌ها را خالی برمی‌گرداند؛
+                // به‌جای سکوت، راهنمای شفاف نمایش می‌دهیم.
+                if (!locationGranted) {
+                    toast(getString(R.string.location_needed_for_cells))
+                }
+            }
             locationGranted -> {
                 tvPermissionGate.visibility = View.VISIBLE
                 tvPermissionGate.text = getString(R.string.sim_no_permission)
@@ -306,6 +314,11 @@ class MainActivity : AppCompatActivity() {
         unregisterSignalListener()
         cellPollJob?.cancel()
         cellPollJob = null
+        // توقف کارهای در جریان (تست سرعت / GPS+OpenCelliD) هنگام خروج از صفحه
+        distanceJob?.cancel()
+        distanceJob = null
+        speedTestJob?.cancel()
+        speedTestJob = null
     }
 
     // ───────────────────────── اطلاعات تلفن / سیم‌کارت ─────────────────────────
@@ -446,6 +459,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun registerSignalListener() {
         if (!hasPhonePermission()) return
+        // جلوگیری از ثبت تکراری کال‌بک (نشت حافظه) در جریان onResume مجدد
+        unregisterSignalListener()
 
         // توجه: طبق مستندات رسمی اندروید، registerTelephonyCallback/TelephonyCallback
         // از API 31 (Android 12 / S) اضافه شده است؛ بنابراین بازهٔ API 26 تا 30
@@ -868,7 +883,8 @@ class MainActivity : AppCompatActivity() {
             }
             val carrier = sub.carrierName?.toString().orEmpty()
                 .ifBlank { getString(R.string.unknown_operator) }
-            val slotNumber = sub.simSlotIndex + 1
+            // clamp: simSlotIndex طبق مستندات ممکن است -1 باشد
+            val slotNumber = (sub.simSlotIndex.coerceAtLeast(0)) + 1
             llSimList.addView(
                 makeInfoRow(
                     getString(R.string.sim_row_fmt, slotNumber, sub.simSlotIndex, carrier, typeLabel)
@@ -959,18 +975,20 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private suspend fun getCurrentLocationSuspend(): Location? =
-        suspendCancellableCoroutine { continuation ->
-            fusedLocationClient
-                .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                .addOnSuccessListener { location ->
-                    if (continuation.isActive) continuation.resume(location)
-                }
-                .addOnFailureListener { error ->
-                    if (continuation.isActive) continuation.resumeWith(Result.failure(error))
-                }
-                .addOnCanceledListener {
-                    if (continuation.isActive) continuation.cancel()
-                }
+        withTimeout(30_000) {
+            suspendCancellableCoroutine { continuation ->
+                fusedLocationClient
+                    .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener { location ->
+                        if (continuation.isActive) continuation.resume(location)
+                    }
+                    .addOnFailureListener { error ->
+                        if (continuation.isActive) continuation.resumeWith(Result.failure(error))
+                    }
+                    .addOnCanceledListener {
+                        if (continuation.isActive) continuation.cancel()
+                    }
+            }
         }
 
     /**
@@ -981,12 +999,20 @@ class MainActivity : AppCompatActivity() {
         val lac = cell.lac ?: return null
         val mcc = cell.mcc ?: return null
         val mnc = cell.mnc ?: return null
+        // فیلد radio دقت جستجو در OpenCelliD را بالا می‌برد
+        val radio = when (cell.radio) {
+            "lte" -> "lte"
+            "nr" -> "nr"
+            "umts" -> "umts"
+            else -> "gsm"
+        }
         return "https://opencellid.org/cell/get" +
             "?token=" + key +
             "&mcc=" + mcc +
             "&mnc=" + mnc +
             "&lac=" + lac +
-            "&cellid=" + cid
+            "&cellid=" + cid +
+            "&radio=" + radio
     }
 
     /** فراخوانی شبکه‌ای OpenCelliD (روی Dispatchers.IO اجرا می‌شود) و برگرداندن lat/lon دکل */
@@ -1005,7 +1031,11 @@ class MainActivity : AppCompatActivity() {
             if (obj.has("lat") && obj.has("lon")) {
                 return obj.getDouble("lat") to obj.getDouble("lon")
             }
-            val message = obj.optString("message", "")
+            // کلیدهای خطای احتمالی OpenCelliD: message / error / description
+            val message = listOf("message", "error", "description")
+                .firstOrNull { obj.optString(it, "").isNotEmpty() }
+                ?.let { k -> obj.optString(k) }
+                ?: ""
             throw IOException(
                 if (message.isNotEmpty()) message else "پاسخ نامعتبر از OpenCelliD"
             )

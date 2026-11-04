@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/network/stat-card";
+import { HistoryChart } from "@/components/network/history-chart";
 import { useSpeedTest, type SpeedTestState } from "@/hooks/use-speedtest";
 import { useNetworkInfo } from "@/hooks/use-network-info";
-import { faNum, faDateTime, effectiveTypeLabel, qualityMeta, computeQualityScore, connectionLabel, toFa } from "@/lib/persian";
+import { faNum, faDateTime, effectiveTypeLabel, computeQualityScore, connectionLabel, toFa } from "@/lib/persian";
 import {
   ArrowDown,
   ArrowUp,
@@ -18,6 +19,7 @@ import {
   Square,
   History,
   Trophy,
+  TrendingUp,
 } from "lucide-react";
 
 interface HistoryItem {
@@ -161,6 +163,21 @@ export function SpeedTestTab() {
           iconColor="#84cc16"
         />
       </div>
+
+      {/* نمودار روند */}
+      {history.length >= 2 && (
+        <Card className="bg-zinc-900/70 border-zinc-800">
+          <CardHeader className="pb-0">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-200">
+              <TrendingUp size={16} className="text-emerald-400" aria-hidden />
+              روند سرعت در تست‌های اخیر
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <HistoryChart data={history} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* تاریخچه */}
       <Card className="bg-zinc-900/70 border-zinc-800">

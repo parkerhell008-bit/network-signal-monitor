@@ -29,7 +29,7 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number) {
   return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
 }
 
-/** گیج قوسی بزرگ برای کیفیت سیگنال یا سرعت */
+/** گیج قوسی ۲۶۰ درجه برای کیفیت سیگنال — هندسهٔ بدون برش */
 export function SignalGauge({
   score,
   label,
@@ -38,8 +38,9 @@ export function SignalGauge({
   subtitle,
 }: SignalGaugeProps) {
   const cx = size / 2;
-  const cy = size / 2 + 6;
+  const cy = size / 2 - 10; // مرکز کمی بالاتر تا پایین قوس جا شود
   const r = size / 2 - 26;
+  const height = Math.round(size * 0.9);
   const clamped = Math.max(0, Math.min(100, score));
   const angle = START_ANGLE + (clamped / 100) * SWEEP;
 
@@ -61,7 +62,7 @@ export function SignalGauge({
   return (
     <div className="relative flex items-center justify-center" role="img"
       aria-label={`کیفیت سیگنال: ${label}، امتیاز ${faNum(clamped, 0)} از ۱۰۰`}>
-      <svg width={size} height={size * 0.82} viewBox={`0 0 ${size} ${size * 0.82}`}>
+      <svg width={size} height={height} viewBox={`0 0 ${size} ${height}`}>
         {/* تیک‌های پس‌زمینه */}
         {ticks.map((a, i) => {
           const outer = polar(cx, cy, r + 10, a);
@@ -121,15 +122,15 @@ export function SignalGauge({
         <circle cx={cx} cy={cy} r={2.5} fill="#09090b" />
 
         {/* اعداد شروع و پایان */}
-        <text x={polar(cx, cy, r - 34, START_ANGLE).x} y={polar(cx, cy, r - 30, START_ANGLE).y}
+        <text x={polar(cx, cy, r - 36, START_ANGLE).x} y={polar(cx, cy, r - 30, START_ANGLE).y}
           fill="#71717a" fontSize={10} textAnchor="middle">۰</text>
-        <text x={polar(cx, cy, r - 34, START_ANGLE + SWEEP).x} y={polar(cx, cy, r - 30, START_ANGLE + SWEEP).y}
+        <text x={polar(cx, cy, r - 36, START_ANGLE + SWEEP).x} y={polar(cx, cy, r - 30, START_ANGLE + SWEEP).y}
           fill="#71717a" fontSize={10} textAnchor="middle">۱۰۰</text>
       </svg>
 
       {/* متن مرکزی */}
       <div className="absolute flex flex-col items-center justify-center pointer-events-none"
-        style={{ top: "58%", transform: "translateY(-50%)" }}>
+        style={{ top: "56%", transform: "translateY(-50%)" }}>
         <span className="text-4xl font-extrabold tabular-nums" style={{ color }}>
           {faNum(clamped, 0)}
         </span>

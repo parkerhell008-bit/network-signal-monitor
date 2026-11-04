@@ -83,4 +83,5 @@
     <string name="speed_status_done">تست سرعت کامل شد.</string>
     <string name="speed_status_error">خطا در تست سرعت</string>
     <string name="speed_no_internet">اتصال اینترنت یافت نشد؛ ابتدا به شبکه متصل شوید.</string>
+    <string name="location_needed_for_cells">بدون مجوز «موقعیت مکانی»، اندروید شناسهٔ دکل‌های اطراف را مخفی می‌کند؛ برای دیدن دکل‌ها و فاصله، مجوز موقعیت را هم تأیید کنید.</string>
 </resources>
