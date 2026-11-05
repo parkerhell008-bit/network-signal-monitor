@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.TrafficStats
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -42,6 +43,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -104,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     private var cellPollJob: Job? = null
     private var distanceJob: Job? = null
     private var speedTestJob: Job? = null
+    private var liveTrafficJob: Job? = null
 
     /** فقط یک‌بار به‌طور خودکار دیالوگ مجوز را باز می‌کنیم تا پس از رد شدن،
      *  دیالوگ در حلقهٔ بی‌پایان onResume دوباره باز نشود؛
@@ -115,9 +118,16 @@ class MainActivity : AppCompatActivity() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var lastDbm: Int? = null
+    private var lastRsrpVal: Int? = null
     private var lastDistanceText: String? = null
     private var lastServingGeneration: String? = null
     private var numericServing: NumericServing? = null
+
+    /** کلید «سلول جاری» برای محاسبهٔ خودکار فاصله فقط در تغییر دکل */
+    private var lastAutoDistCellKey: String? = null
+
+    /** خلاصهٔ آخرین تست سرعت برای گزارش اشتراک‌گذاری */
+    private var lastSpeedSummary: String? = null
 
     // ───────────────────────── ویوها ─────────────────────────
 
@@ -164,6 +174,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvUpload: TextView
     private lateinit var tvSpeedStatus: TextView
 
+    // ── امکانات حرفه‌ای (نسخهٔ ۱.۳) ──
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var btnShare: androidx.appcompat.widget.AppCompatImageView
+    private lateinit var tvSignalScore: TextView
+    private lateinit var signalChart: SignalChartView
+    private lateinit var tvDistanceSource: TextView
+    private lateinit var tvDistanceAcc: TextView
+    private lateinit var llAdvanced: LinearLayout
+    private lateinit var tvAdvancedToggle: TextView
+    private lateinit var tvLiveDown: TextView
+    private lateinit var tvLiveUp: TextView
+
     // ── تاریخچه تست سرعت ──
     private lateinit var historyChart: HistoryChartView
     private lateinit var tvHistoryCount: TextView
@@ -204,6 +226,11 @@ class MainActivity : AppCompatActivity() {
         bindViews()
         setupCellsRecyclerView()
         setupButtons()
+
+        swipeRefresh.setOnRefreshListener {
+            refreshAll()
+            swipeRefresh.isRefreshing = false
+        }
 
         etApiKey.setText(prefs.getString(KEY_OPENCELLID, "") ?: "")
         refreshHistory()
@@ -287,6 +314,17 @@ class MainActivity : AppCompatActivity() {
         tvDeviceBattery = findViewById(R.id.tvDeviceBattery)
         tvDeviceUptime = findViewById(R.id.tvDeviceUptime)
         tvDeviceCpu = findViewById(R.id.tvDeviceCpu)
+
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        btnShare = findViewById(R.id.btnShare)
+        tvSignalScore = findViewById(R.id.tvSignalScore)
+        signalChart = findViewById(R.id.signalChart)
+        tvDistanceSource = findViewById(R.id.tvDistanceSource)
+        tvDistanceAcc = findViewById(R.id.tvDistanceAcc)
+        llAdvanced = findViewById(R.id.llAdvanced)
+        tvAdvancedToggle = findViewById(R.id.tvAdvancedToggle)
+        tvLiveDown = findViewById(R.id.tvLiveDown)
+        tvLiveUp = findViewById(R.id.tvLiveUp)
     }
 
     private fun setupCellsRecyclerView() {
@@ -301,6 +339,8 @@ class MainActivity : AppCompatActivity() {
         btnLocateTower.setOnClickListener { onLocateTowerClicked() }
         btnSpeedTest.setOnClickListener { toggleSpeedTest() }
         btnClearHistory.setOnClickListener { onClearHistoryClicked() }
+        btnShare.setOnClickListener { shareDiagnostics() }
+        tvAdvancedToggle.setOnClickListener { toggleAdvanced() }
     }
 
     // ───────────────────────── مجوزها ─────────────────────────
@@ -373,6 +413,7 @@ class MainActivity : AppCompatActivity() {
         startCellPolling()
         updateNetworkType()
         refreshDeviceInfo()
+        startLiveTraffic()
     }
 
     private fun stopAll() {
@@ -394,6 +435,13 @@ class MainActivity : AppCompatActivity() {
             tvTowerBearing.text = "—"
         }
         distanceJob = null
+        // توقف شمارندهٔ ترافیک لحظه‌ای
+        if (liveTrafficJob?.isActive == true) {
+            liveTrafficJob?.cancel()
+            tvLiveDown.text = getString(R.string.speed_na)
+            tvLiveUp.text = getString(R.string.speed_na)
+        }
+        liveTrafficJob = null
     }
 
     // ───────────────────────── اطلاعات تلفن / سیم‌کارت ─────────────────────────
@@ -619,6 +667,45 @@ class MainActivity : AppCompatActivity() {
         tvRsrq.text = rsrq?.let { it.toPersianDigits() + " dB" } ?: "—"
         tvSnr.text = snr?.let { it.toPersianDigits() + " dB" } ?: "—"
         tvRssi.text = formatDbmOrNull(rssi)
+
+        // نمودار زندهٔ سیگنال + امتیاز کیفی
+        lastRsrpVal = rsrp
+        signalChart.addSample(dbm)
+        updateQualityScore(dbm)
+    }
+
+    /** امتیاز کیفی ۰ تا ۱۰۰ از dBm/RSRP + برچسب فارسی و رنگ */
+    private fun updateQualityScore(dbm: Int?) {
+        val gen = lastServingGeneration
+        val raw: Double = when {
+            lastRsrpVal != null && (gen == "4G" || gen == "5G") -> (lastRsrpVal!! + 120) * 100.0 / 50.0
+            dbm != null -> (dbm + 113) * 100.0 / 60.0
+            else -> -1.0
+        }
+        if (raw < 0) {
+            tvSignalScore.text = "—"
+            return
+        }
+        val score = raw.toInt().coerceIn(0, 100)
+        val label = when {
+            score >= 80 -> "عالی"
+            score >= 60 -> "خوب"
+            score >= 40 -> "متوسط"
+            score >= 20 -> "ضعیف"
+            else -> "خیلی ضعیف"
+        }
+        tvSignalScore.text =
+            getString(R.string.score_fmt, score.toString().toPersianDigits()) + " — " + label
+        tvSignalScore.setTextColor(
+            ContextCompat.getColor(
+                this,
+                when {
+                    score >= 60 -> R.color.sig_good
+                    score >= 40 -> R.color.sig_mid
+                    else -> R.color.sig_bad
+                }
+            )
+        )
     }
 
     /** مقادیر نامعتبر (Integer.MAX_VALUE) را حذف می‌کند */
@@ -734,6 +821,9 @@ class MainActivity : AppCompatActivity() {
 
         numericServing = servingNumeric ?: numericServing
         updateMccMncRow()
+
+        // محاسبهٔ خودکار فاصله هنگام تغییر دکل متصل (بدون نیاز به لمس دکمه)
+        maybeAutoDistance()
     }
 
     private fun parseCellInfo(info: CellInfo): CellRow? {
@@ -1028,31 +1118,45 @@ class MainActivity : AppCompatActivity() {
             )
             return
         }
-        if (lastServingGeneration == "5G") {
-            toast(getString(R.string.err_nr_distance))
-            return
-        }
-        val cell = numericServing
-        if (cell == null || cell.cid == null || cell.lac == null || cell.radio == "cdma") {
-            toast(getString(R.string.err_no_cell))
-            return
-        }
-        val key = prefs.getString(KEY_OPENCELLID, null)
-        if (key.isNullOrBlank()) {
-            tvTowerDistance.text = getString(R.string.err_no_key)
-            toast(getString(R.string.err_no_key))
-            return
-        }
-        val url = buildOpenCelliDUrl(cell, key)
-        if (url == null) {
-            toast(getString(R.string.err_no_cell))
-            return
-        }
+        computeTowerDistance()
+    }
+
+    /**
+     * محاسبهٔ خودکار فاصله: فقط وقتی دکل متصل عوض شود (یا اولین بار) اجرا می‌شود
+     * تا از درخواست‌های مکرر GPS و شبکه جلوگیری شود.
+     */
+    private fun maybeAutoDistance() {
+        if (!hasLocationPermission()) return
+        if (distanceJob?.isActive == true) return
+        val cell = numericServing ?: return
+        val key = (cell.radio ?: "?") + "-" + (cell.cid ?: 0) + "-" + (cell.lac ?: 0)
+        if (key == lastAutoDistCellKey) return
+        lastAutoDistCellKey = key
+        computeTowerDistance()
+    }
+
+    /** نتیجهٔ تعیین موقعیت دکل از یکی از ارائه‌دهنده‌ها */
+    private data class TowerFix(
+        val lat: Double,
+        val lon: Double,
+        val sourceRes: Int,
+        val accuracyMeters: Int? = null
+    )
+
+    /**
+     * زنجیرهٔ تعیین موقعیت دکل — کاملاً خودکار و بدون نیاز به کلید:
+     * ۱) OpenCelliD اگر کاربر قبلاً کلید ذخیره کرده باشد (دقیق‌ترین)
+     * ۲) Mylnikov (رایگان و بدون کلید)
+     * ۳) اگر هیچ‌کدام نشد: تخمین تقریبی از قدرت سیگنال (همیشه در دسترس)
+     */
+    private fun computeTowerDistance() {
         if (distanceJob?.isActive == true) return
 
         tvTowerDistance.text = getString(R.string.msg_getting_gps)
         tvTowerBearing.text = "—"
         tvGpsCoords.text = "—"
+        tvDistanceSource.text = ""
+        tvDistanceAcc.text = ""
 
         distanceJob = lifecycleScope.launch(Dispatchers.Main) {
             try {
@@ -1063,19 +1167,40 @@ class MainActivity : AppCompatActivity() {
                     return@launch
                 }
                 tvGpsCoords.text = formatCoords(location.latitude, location.longitude)
-                tvTowerDistance.text = getString(R.string.msg_querying_opencellid)
+                tvTowerDistance.text = getString(R.string.msg_querying_db)
 
-                val tower = withContext(Dispatchers.IO) { fetchTowerLocation(url) }
-                val distance = haversineMeters(
-                    location.latitude, location.longitude, tower.first, tower.second
-                )
-                val bearing = bearingDegrees(
-                    location.latitude, location.longitude, tower.first, tower.second
-                )
-                val distStr = formatDistance(distance)
-                lastDistanceText = distStr
-                tvTowerDistance.text = distStr
-                tvTowerBearing.text = formatBearing(bearing)
+                val cell = numericServing
+                val fix = withContext(Dispatchers.IO) { resolveTowerFix(cell) }
+
+                if (fix != null) {
+                    val distance = haversineMeters(
+                        location.latitude, location.longitude, fix.lat, fix.lon
+                    )
+                    val bearing = bearingDegrees(
+                        location.latitude, location.longitude, fix.lat, fix.lon
+                    )
+                    val distStr = formatDistance(distance)
+                    lastDistanceText = distStr
+                    tvTowerDistance.text = distStr
+                    tvTowerBearing.text = formatBearing(bearing)
+                    tvDistanceSource.text = getString(fix.sourceRes)
+                    fix.accuracyMeters?.let {
+                        tvDistanceAcc.text =
+                            getString(R.string.distance_acc_fmt, formatDistance(it.toDouble()))
+                    }
+                } else {
+                    // ارائه‌دهندهٔ ۳: تخمین بر پایهٔ تضعیف سیگنال (بدون هیچ سرویس بیرونی)
+                    val estimate = estimateDistanceFromSignal()
+                    if (estimate != null) {
+                        lastDistanceText = estimate
+                        tvTowerDistance.text = estimate
+                        tvTowerBearing.text = "—"
+                        tvDistanceSource.text = getString(R.string.src_estimate)
+                    } else {
+                        tvTowerDistance.text =
+                            getString(R.string.err_generic, getString(R.string.err_no_cell))
+                    }
+                }
             } catch (e: TimeoutCancellationException) {
                 // تایم‌اوت ۳۰ ثانیه‌ای GPS نباید بی‌صدا رد شود — پیام واضح نمایش داده می‌شود
                 tvTowerDistance.text =
@@ -1087,6 +1212,104 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.err_generic, e.message ?: "خطای ناشناخته")
             }
         }
+    }
+
+    /** تلاش به ترتیب در ارائه‌دهنده‌های موقعیت دکل؛ null یعنی هیچ‌کدام جواب نداد */
+    private fun resolveTowerFix(cell: NumericServing?): TowerFix? {
+        if (cell == null) return null
+
+        // ۱) OpenCelliD (در صورت وجود کلید ذخیره‌شده)
+        val key = prefs.getString(KEY_OPENCELLID, null)
+        if (!key.isNullOrBlank() && cell.radio != "cdma") {
+            val url = buildOpenCelliDUrl(cell, key)
+            if (url != null) {
+                try {
+                    val (lat, lon) = fetchTowerLocation(url)
+                    return TowerFix(lat, lon, R.string.src_opencellid)
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (t: Throwable) {
+                    // ارائه‌دهندهٔ بعدی
+                }
+            }
+        }
+
+        // ۲) Mylnikov — رایگان و بدون کلید (برای 5G پشتیبانی نمی‌شود)
+        if (cell.radio != "nr" && cell.radio != "cdma" &&
+            cell.cid != null && cell.lac != null && !cell.mcc.isNullOrBlank() && !cell.mnc.isNullOrBlank()
+        ) {
+            try {
+                return fetchMylnikov(cell)
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                // ارائه‌دهندهٔ بعدی (تخمین سیگنال)
+            }
+        }
+
+        return null
+    }
+
+    /** فراخوانی سرویس رایگان Mylnikov (بدون کلید) و برگرداندن موقعیت دکل */
+    private fun fetchMylnikov(cell: NumericServing): TowerFix {
+        val url = "https://api.mylnikov.org/geolocation/get?v=1.1" +
+            "&mcc=" + cell.mcc +
+            "&mnc=" + cell.mnc +
+            "&lac=" + cell.lac +
+            "&cellid=" + cell.cid
+        val connection = URL(url).openConnection() as HttpURLConnection
+        connection.connectTimeout = 8_000
+        connection.readTimeout = 8_000
+        try {
+            val code = connection.responseCode
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
+            if (code !in 200..299) {
+                throw IOException("پاسخ سرور Mylnikov: $code")
+            }
+            val obj = JSONObject(body)
+            if (obj.optInt("result", -1) == 1) {
+                val data = obj.getJSONObject("data")
+                val accuracy = data.optInt("range", 0).takeIf { it > 0 }
+                return TowerFix(
+                    data.getDouble("lat"),
+                    data.getDouble("lon"),
+                    R.string.src_mylnikov,
+                    accuracy
+                )
+            }
+            throw IOException("این دکل در دیتابیس Mylnikov ثبت نشده است")
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /**
+     * تخمین فاصله از قدرت سیگنال با مدل تضعیف لگاریتمی (مسیر آزاد):
+     * FSPL(dB) = ۲۰log₁₀(d_km) + ۲۰log₁₀(f_MHz) + ۳۲٫۴۴
+     * ثابت‌های کالیبراسیون شهری (توان مؤثر پرتاب + اتلاف نفوذ) طوری انتخاب شده‌اند
+     * که برای شبکه‌های ایران مقادیر واقع‌بینانه بدهد. خروجی «تخمین تقریبی» است.
+     */
+    private fun estimateDistanceFromSignal(): String? {
+        val gen = lastServingGeneration
+        val perRe = gen == "4G" || gen == "5G"   // RSRP به‌ازای هر المان منبع است
+        val dbm = if (perRe) (lastRsrpVal ?: lastDbm ?: return null) else (lastDbm ?: return null)
+        if (dbm >= 0 || dbm < -140) return null
+
+        val freqMHz = when (gen) {
+            "5G" -> 3500.0
+            "4G" -> 1800.0
+            "3G" -> 2100.0
+            else -> 900.0
+        }
+        // توان مؤثر (EIRP) در گیرنده: LTE/NR هر المان منبع ≈ ۲۷dBm؛ GSM/UMTS کل کانال ≈ ۵۸dBm
+        val eirp = if (perRe) 27.0 else 58.0
+        val fspl = eirp - dbm - 25.0   // ۲۵dB اتلاف شهری/نفوذ ساختمان
+        if (fspl <= 10.0) return formatDistance(40.0)
+
+        val km = Math.pow(10.0, (fspl - 20.0 * Math.log10(freqMHz) - 32.44) / 20.0)
+        val meters = (km * 1000.0).coerceIn(30.0, 50_000.0)
+        return formatDistance(meters)
     }
 
     @SuppressLint("MissingPermission")
@@ -1227,6 +1450,95 @@ class MainActivity : AppCompatActivity() {
         toast(getString(R.string.msg_key_saved))
     }
 
+    /** باز/بسته کردن بخش «تنظیمات پیشرفته» (کلید اختیاری OpenCelliD) */
+    private fun toggleAdvanced() {
+        val show = llAdvanced.visibility != View.VISIBLE
+        llAdvanced.visibility = if (show) View.VISIBLE else View.GONE
+        tvAdvancedToggle.text = getString(
+            if (show) R.string.advanced_toggle_hide else R.string.advanced_toggle_show
+        )
+    }
+
+    /** تازه‌سازی همهٔ بخش‌ها (کشیدن به پایین) */
+    private fun refreshAll() {
+        refreshTelephonyInfo()
+        refreshDualSim()
+        refreshCellInfo()
+        updateNetworkType()
+        refreshDeviceInfo()
+        refreshHistory()
+    }
+
+    /** اشتراک‌گذاری گزارش کامل شبکه به‌صورت متن */
+    private fun shareDiagnostics() {
+        val sb = StringBuilder(getString(R.string.share_header))
+        sb.append(getString(R.string.label_operator)).append(": ")
+            .append(tvOperatorName.text).append('\n')
+        sb.append(getString(R.string.label_rat)).append(": ")
+            .append(chipNetwork.text).append('\n')
+        sb.append(getString(R.string.label_dbm)).append(": ")
+            .append(tvDbm.text).append('\n')
+        if (tvRsrp.text.toString() != "—") {
+            sb.append(getString(R.string.label_rsrp)).append(": ")
+                .append(tvRsrp.text).append('\n')
+        }
+        sb.append(getString(R.string.label_cid)).append(": ")
+            .append(tvServingCid.text).append('\n')
+        sb.append(getString(R.string.label_distance)).append(": ")
+            .append(tvTowerDistance.text).append('\n')
+        if (tvTowerBearing.text.toString() != "—") {
+            sb.append(getString(R.string.label_bearing)).append(": ")
+                .append(tvTowerBearing.text).append('\n')
+        }
+        lastSpeedSummary?.let {
+            sb.append(getString(R.string.card_speed_title)).append(": ").append(it).append('\n')
+        }
+        sb.append('\n').append(getString(R.string.app_name))
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, sb.toString())
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.share_via)))
+    }
+
+    /** سرعت لحظه‌ای ارسال/دریافت اینترنت گوشی از TrafficStats (هر ثانیه) */
+    private fun startLiveTraffic() {
+        liveTrafficJob?.cancel()
+        liveTrafficJob = lifecycleScope.launch(Dispatchers.Main) {
+            var lastRx = TrafficStats.getTotalRxBytes()
+            var lastTx = TrafficStats.getTotalTxBytes()
+            var lastT = SystemClock.elapsedRealtime()
+            while (isActive) {
+                delay(1_000)
+                val rx = TrafficStats.getTotalRxBytes()
+                val tx = TrafficStats.getTotalTxBytes()
+                val t = SystemClock.elapsedRealtime()
+                val dtS = (t - lastT) / 1000.0
+                val supported = rx != TrafficStats.UNSUPPORTED &&
+                    lastRx != TrafficStats.UNSUPPORTED
+                if (supported && dtS > 0) {
+                    val downKbps = (rx - lastRx).coerceAtLeast(0L) * 8.0 / 1e3 / dtS
+                    val upKbps = (tx - lastTx).coerceAtLeast(0L) * 8.0 / 1e3 / dtS
+                    tvLiveDown.text = formatLiveSpeed(downKbps)
+                    tvLiveUp.text = formatLiveSpeed(upKbps)
+                }
+                lastRx = rx
+                lastTx = tx
+                lastT = t
+            }
+        }
+    }
+
+    /** قالب سرعت لحظه‌ای: کیلوبیت یا مگابیت بر ثانیه */
+    private fun formatLiveSpeed(kbps: Double): String {
+        return if (kbps >= 1000.0) {
+            formatNumber1f(kbps / 1000.0) + " Mbps"
+        } else {
+            String.format(Locale.US, "%.0f", kbps).toPersianDigits() + " Kbps"
+        }
+    }
+
     // ───────────────────────── تست سرعت ─────────────────────────
 
     private fun toggleSpeedTest() {
@@ -1273,6 +1585,10 @@ class MainActivity : AppCompatActivity() {
                         " (جیتر: " + formatNumber1f(result.jitterMs) + ")"
                     tvDownload.text = formatMbps(result.downloadMbps)
                     tvUpload.text = formatMbps(result.uploadMbps)
+                    lastSpeedSummary =
+                        "↓ " + formatNumber1f(result.downloadMbps) + " / ↑ " +
+                        formatNumber1f(result.uploadMbps) + " Mbps — پینگ " +
+                        formatNumber1f(result.pingMs) + "ms"
                     tvSpeedStatus.text = getString(R.string.speed_status_done)
                     finishSpeedUi()
                     // ذخیرهٔ خودکار نتیجه در تاریخچهٔ محلی؛ روی اسکوپ مستقل از اکتیویتی

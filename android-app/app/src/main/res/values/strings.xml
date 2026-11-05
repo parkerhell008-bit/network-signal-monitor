@@ -45,19 +45,26 @@
     <string name="tag_serving">سروینگ</string>
     <string name="tag_neighbor">همسایه</string>
 
-    <!-- ─── کارت فاصله تا دکل ─── -->
-    <string name="card_distance_title">فاصله تا دکل (OpenCelliD)</string>
-    <string name="btn_locate">محاسبه فاصله با GPS</string>
+    <!-- ─── کارت فاصله تا دکل (خودکار) ─── -->
+    <string name="card_distance_title">فاصله تا دکل (کاملاً خودکار)</string>
+    <string name="btn_locate">محاسبهٔ فاصله با GPS</string>
+    <string name="btn_update_distance">به‌روزرسانی فاصله</string>
     <string name="label_distance">فاصله تخمینی تا دکل</string>
+    <string name="label_source">منبع موقعیت دکل</string>
     <string name="label_bearing">جهت دکل</string>
     <string name="label_gps">مختصات شما</string>
-    <string name="hint_api_key">کلید API سرویس OpenCelliD</string>
+    <string name="src_opencellid">دقیق — OpenCelliD (کلید شما)</string>
+    <string name="src_mylnikov">دقیق — Mylnikov (خودکار، بدون کلید)</string>
+    <string name="src_estimate">تخمین تقریبی از قدرت سیگنال (بدون دیتابیس)</string>
+    <string name="distance_acc_fmt">دقت تخمینی: ±%1$s</string>
+    <string name="msg_getting_gps">در حال دریافت موقعیت GPS…</string>
+    <string name="msg_querying_db">در حال یافتن موقعیت دکل…</string>
+    <string name="err_providers_failed">دیتابیس‌های موقعیت دکل موقتاً در دسترس نیستند؛ تخمین تقریبی نمایش داده شد.</string>
+    <string name="hint_api_key">کلید OpenCelliD (اختیاری — برای بیشترین دقت)</string>
     <string name="btn_save_key">ذخیره کلید</string>
     <string name="distance_na">برای محاسبه فاصله، دکمه بالا را بزنید.</string>
-    <string name="msg_getting_gps">در حال دریافت موقعیت GPS…</string>
-    <string name="msg_querying_opencellid">در حال پرس‌وجوی موقعیت دکل از OpenCelliD…</string>
     <string name="err_gps_failed">دریافت موقعیت GPS ناموفق بود.</string>
-    <string name="err_no_key">ابتدا کلید API خود را از opencellid.org دریافت و در کادر زیر ذخیره کنید.</string>
+    <string name="err_no_key">برای موقعیت دقیق، کلید رایگان OpenCelliD را در «تنظیمات پیشرفته» وارد کنید — یا از تخمین خودکار استفاده کنید.</string>
     <string name="err_no_cell">اطلاعات عددی دکل متصل در دسترس نیست؛ لحظه‌ای بعد دوباره تلاش کنید.</string>
     <string name="err_nr_distance">محاسبه فاصله برای شبکه 5G در OpenCelliD پشتیبانی نمی‌شود.</string>
     <string name="msg_key_saved">کلید API ذخیره شد.</string>
@@ -106,6 +113,23 @@
     <string name="label_device_cpu">معماری پردازنده</string>
     <string name="battery_charging">در حال شارژ</string>
     <string name="battery_discharging">روی باتری</string>
+
+    <!-- ─── ترافیک لحظه‌ای ─── -->
+    <string name="card_traffic_title">ترافیک لحظه‌ای اینترنت گوشی</string>
+    <string name="label_live_down">دریافت لحظه‌ای</string>
+    <string name="label_live_up">ارسال لحظه‌ای</string>
+    <string name="speed_na">—</string>
+    <string name="kbps_fmt">%1$s کیلوبیت بر ثانیه</string>
+
+    <!-- ─── امتیاز کیفیت ─── -->
+    <string name="score_fmt">کیفیت شبکه: %1$s از ۱۰۰</string>
+
+    <!-- ─── اشتراک‌گذاری و سایر ─── -->
+    <string name="share_via">اشتراک‌گذاری گزارش شبکه</string>
+    <string name="share_header">📡 گزارش شبکه — مانیتور سیگنال\n\n</string>
+    <string name="advanced_toggle_show">▼ تنظیمات پیشرفته — کلید OpenCelliD (اختیاری)</string>
+    <string name="advanced_toggle_hide">▲ بستن تنظیمات پیشرفته</string>
+    <string name="privacy_note">🔒 هیچ داده‌ای به سروری ارسال نمی‌شود؛ موقعیت شما فقط برای محاسبهٔ فاصله تا دکل استفاده می‌شود.</string>
 
     <!-- ─── سازگاری نسخه‌های قدیمی ─── -->
     <string name="sim_requires_api22">نمایش سیم‌کارت‌ها نیازمند اندروید ۵٫۱ یا بالاتر است.</string>

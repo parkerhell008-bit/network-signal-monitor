@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- نوارهای صعودی سیگنال -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,19h3v-5L4,14v5zM10,19h3v-9h-3v9zM16,19h3v-14h-3v14z" />
+</vector>
