@@ -1,88 +1,121 @@
-# 📡 مانیتور سیگنال شبکه | Network Signal Monitor
+# 📡 مانیتور سیگنال شبکه — اپ اندروید | Network Signal Monitor
 
-وب‌اپلیکیشن و اپ اندروید کامل برای مانیتورینگ لحظه‌ای وضعیت شبکه، سیم‌کارت، آنتن، سرعت اینترنت و دکل مخابراتی — با رابط کاربری کاملاً فارسی (RTL)، تم تیره زمردی و معماری مدرن.
+اپلیکیشن اندرویدی (Kotlin) برای **پایش لحظه‌ای وضعیت سیم‌کارت و شبکهٔ موبایل**، نمایش اطلاعات کامل **دکل مخابراتی متصل**، **فاصلهٔ GPS تا دکل** (با سرویس OpenCelliD) و اجرای **تست سرعت اینترنت** (پینگ / دانلود / آپلود) — همه در یک صفحهٔ تیره و کاملاً فارسی (RTL).
 
-A Persian (RTL) web dashboard + complete Android (Kotlin) app for real-time network, SIM, signal, internet speed and cell-tower monitoring.
+> سازگار با **اندروید ۸ به بالا (API 26+)** — یعنی تقریباً همهٔ گوشی‌های فعال دنیا (~۹۷٪).
 
-![داشبورد](docs/screenshots/dashboard.png)
+---
 
-## ✨ امکانات وب‌اپ
+## 🚀 گرفتن APK آماده — بدون نیاز به Android Studio!
 
-- **داشبورد زنده** — گیج کیفیت سیگنال (۰ تا ۱۰۰ + dBm تخمینی)، نوارهای آنتن ۵ تایی، ساعت زنده، تشخیص فوری آنلاین/آفلاین
-- **تست سرعت واقعی** — پینگ (۸ نمونه، میانگین ۴ بهترین) → دانلود جریانی ۱۲ مگابایتی با `ReadableStream` → آپلود ۴ مگابایتی؛ همه‌چیز زنده روی گیج متحرک
-- **نمودار روند + تاریخچه** — ذخیرهٔ نتایج در SQLite (Prisma) و نمودار دانلود/آپلود/پینگ با ارقام فارسی
+این مخزن به **GitHub Actions** مجهز است و با هر تغییر، خودش APK قابل نصب می‌سازد:
 
-  ![نمودار روند](docs/screenshots/history-chart.png)
+1. وارد تب **[Actions](https://github.com/parkerhell008-bit/network-signal-monitor/actions)** این مخزن شوید.
+2. آخرین اجرای موفق **«Build Android APK»** را باز کنید (کنارش تیک سبز ✓ است).
+3. از بخش **Artifacts** فایل `network-signal-monitor-apk` را دانلود کنید.
+4. ZIP را باز کنید، `app-debug.apk` را به گوشی بفرستید و نصب کنید.
+   - در تنظیمات گوشی، «نصب از منابع ناشناس» را برای مرورگر/فایل‌منیجر خود موقتاً فعال کنید.
+   - APK از نوع Debug است و با کلید debug امضا شده — برای انتشار در استور، نسخهٔ Release امضاشده بسازید (راهنما در ادامه).
 
-- **اطلاعات دستگاه** — IP عمومی، باتری (Battery API)، سیستم‌عامل و مرورگر، جدول کامل Network Information API و GPS
-- **PWA** — قابل نصب روی موبایل (`manifest.webmanifest` + آیکن‌ها)
-- **دقت و پایداری** — state تست سرعت در سطح پوسته نگه داشته می‌شود؛ تعویض تب وسط تست، آن را قطع نمی‌کند
+---
 
-## 📱 اپ اندروید (پوشهٔ `android-app/`)
+## ✨ امکانات
 
-پروژهٔ کامل Android Studio با Kotlin، Material 3 و رابط کاملاً فارسی — دقیقاً همان چیزی که مرورگر نمی‌تواند نشان دهد:
+- **گیج ۲۷۰ درجه‌ای قدرت سیگنال** از `0` تا `-120 dBm` با عقربهٔ متحرک و گرادیان رنگی قرمز → زرد → سبز، به‌همراه **۵ نوار سیگنال**.
+- **جزئیات قدرت سیگنال**: `dBm`، `ASU`، سطح سیگنال و در LTE/5G مقادیر `RSRP`، `RSRQ`، `SNR` و `RSSI`.
+- **تشخیص نسل و نوع شبکه**: نگاشت کامل همهٔ ثابت‌های `NETWORK_TYPE_*` — از `5G NR` و `LTE-A` تا `EDGE` و `IWLAN`.
+- **وضعیت شبکه و سیم‌کارت**: اپراتور شبکه و سیم‌کارت، `MCC/MNC`، کشور، وضعیت سیم‌کارت (PIN/PUK)، **رومینگ**، وضعیت و فعالیت داده.
+- **دکل متصل (سروینگ)**: `CID/NCI`، `TAC/LAC`، `PCI/PSC`، `EARFCN/ARFCN`، پهنای باند — به‌علاوهٔ **لیست سلول‌های همسایه** (به‌روزرسانی هر ۳ ثانیه).
+- **دو سیم‌کارت (Dual SIM)**: فهرست اشتراک‌های فعال با اپراتور و نوع شبکهٔ جداگانهٔ هر سیم.
+- **فاصله تا دکل**: GPS (FusedLocationProvider) + مختصات دکل از [OpenCelliD](https://opencellid.org) → فاصلهٔ **هاورساین** به متر + **جهت به فارسی** (شمال، شمال‌شرقی و…).
+- **تست سرعت اینترنت**: پینگ (۱۰ نمونه + جیتر)، دانلود با **۴ جریان موازی** (تا ۲۵MB در هر جریان، سقف ۱۵ ثانیه) و آپلود ۴ درخواست موازی ۲ مگابایتی — با نوار پیشرفت، نرخ لحظه‌ای، ارقام فارسی و امکان لغو.
 
-| قابلیت | توضیح |
-|---|---|
-| قدرت سیگنال واقعی | dBm، ASU، سطح ۰-۴، RSRP/RSRQ/RSSI/SNR برای LTE/5G (با پشتیبانی API 26+) |
-| نوع شبکه | نگاشت کامل 5G NR / LTE / HSPA+ / 3G / EDGE با نسخهٔ نسل |
-| دکل سروینگ | CID، PCI، TAC/LAC، EARFCN، MCC/MNC + سلول‌های همسایه (هر ۳ ثانیه) |
-| فاصله تا دکل | GPS + مختصات دکل از [OpenCelliD](https://opencellid.org) → فاصلهٔ هاورساین به متر + جهت قطب‌نما |
-| دو سیم‌کارت | سابسکریپشن‌های فعال با اپراتور و وضعیت هر سیم |
-| تست سرعت | ۴ جریان موازی دانلود ۲۵MB، آپلود و پینگ با جیتر |
+---
 
-**دانلود ZIP آماده:** [`public/downloads/android-signal-app.zip`](public/downloads/android-signal-app.zip) — همچنین از تب «اپ اندروید» داخل خود برنامه.
+## 📋 پیش‌نیازها (برای build از سورس)
 
-راهنمای کامل ساخت APK در [`android-app/README.md`](android-app/README.md) آمده است (minSdk 26 = اندروید ۸ به بالا).
+- **Android Studio** (Koala یا جدیدتر) با **JDK 17** — یا فقط خط فرمان با JDK 17
+- Gradle از طریق **wrapper** خودکار تأمین می‌شود (`gradle-8.7` + AGP 8.5.2 + Kotlin 1.9.24)
+- برای دیدن اطلاعات دکل حتماً روی **گوشی واقعی** اجرا کنید (امولاتور اطلاعات دکل واقعی ندارد)
 
-## 🚀 راه‌اندازی وب‌اپ
+## 🛠 ساخت APK
+
+### روش ۱: خط فرمان (بدون Android Studio)
 
 ```bash
-# ۱) نصب وابستگی‌ها
-bun install        # یا npm install
-
-# ۲) تنظیم دیتابیس (SQLite + Prisma)
-echo 'DATABASE_URL="file:./../db/custom.db"' > .env
-bun run db:push
-
-# ۳) اجرا
-bun run dev        # http://localhost:3000
+./gradlew assembleDebug
+# خروجی: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## 🏗 معماری
+### روش ۲: Android Studio
 
-```
-├── src/
-│   ├── app/
-│   │   ├── api/ping/                        # پاسخ فوری برای اندازه‌گیری تأخیر
-│   │   ├── api/speedtest/download/          # جریان بایت تصادفی (تا ۲۵MB) برای تست دانلود
-│   │   ├── api/speedtest/upload/            # مصرف بدنهٔ POST و شمارش بایت برای تست آپلود
-│   │   ├── api/speedtest/history/           # GET/POST نتایج (Prisma + SQLite)
-│   │   └── api/network-info/                # IP، مرورگر، OS
-│   ├── components/network/                  # گیج قوسی SVG، نوار آنتن، ۵ تب، نمودار
-│   ├── hooks/
-│   │   ├── use-network-info.ts              # state زنده با useSyncExternalStore
-│   │   └── use-speedtest.ts                 # ماشین حالت idle→ping→download→upload→done
-│   └── lib/persian.ts                       # ارقام فارسی، امتیاز کیفیت، برچسب‌ها
-├── android-app/                             # پروژهٔ کامل Android Studio (Kotlin)
-├── public/downloads/                        # ZIP آمادهٔ اپ اندروید
-└── prisma/schema.prisma                     # مدل SpeedTestResult
+1. `File > Open` → پوشهٔ ریشهٔ مخزن را باز کنید
+2. صبر کنید تا **Gradle Sync** تمام شود
+3. گوشی را با USB Debugging وصل کنید و **Run ▶** بزنید؛ یا `Build > Build APK(s)`
+
+### روش ۳: Release امضاشده برای انتشار
+
+```bash
+keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -keysize 2048 -validity 10000
+./gradlew assembleRelease   # پس از تنظیم signingConfigs در app/build.gradle.kts
 ```
 
-**موتور تست سرعت سمت کلاینت:** پینگ ۸ نمونه → میانگین ۴ بهترین؛ دانلود جریانی با خواندن chunk ها و محاسبهٔ لحظه‌ای؛ سقف زمانی ۱۵ ثانیه برای دانلود (سرعت از بایت واقعی دریافتی). نتیجه به‌صورت خودکار (فقط یک‌بار برای هر اجرا) در دیتابیس ذخیره می‌شود.
+---
 
-## 🛠 تکنولوژی
+## 🔐 مجوزها و دلیل درخواست هرکدام
 
-- **Next.js 16 (App Router) + TypeScript 5** (strict)
-- **Tailwind CSS 4 + shadcn/ui** (تم تیره، سبز زمردی)
-- **Prisma + SQLite** برای تاریخچهٔ تست‌ها
-- **Recharts** برای نمودار روند، **Framer Motion** برای انیمیشن‌ها، **Sonner** برای نوتیفیکیشن
-- **Kotlin + Material 3 + Coroutines + FusedLocation** برای اندروید
+| مجوز | چرا لازم است؟ |
+|---|---|
+| `READ_PHONE_STATE` | خواندن اپراتور، نوع شبکه، `SignalStrength`، `getAllCellInfo` و اشتراک‌های Dual SIM |
+| `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` | از اندروید ۱۰ به بعد خواندن `CellInfo` نیازمند مجوز موقعیت است + محاسبهٔ فاصلهٔ GPS تا دکل |
+| `INTERNET` | تست سرعت (سرورهای Cloudflare) و پرس‌وجوی OpenCelliD |
+| `ACCESS_NETWORK_STATE` | تشخیص اتصال اینترنت پیش از تست سرعت |
 
-## ⚠️ نکتهٔ مهم: محدودیت مرورگر
+بدون تأیید مجوزها، کارت‌های مرتبط پیام راهنما نشان می‌دهند و مجوزها با `registerForActivityResult` در اولین اجرا درخواست می‌شوند.
 
-مرورگرها به دلایل امنیتی به شناسهٔ دکل (CID/PCI)، dBm سخت‌افزاری و اطلاعات اپراتور دسترسی نمی‌دهند؛ مقادیر وب‌اپ «تخمینی» است. اندازه‌گیری دقیق (dBm واقعی، دکل سروینگ، فاصلهٔ واقعی تا دکل) فقط با اپ اندروید ممکن است.
+## 🔑 کلید رایگان OpenCelliD (برای فاصلهٔ دکل)
+
+1. در **https://opencellid.org** حساب رایگان بسازید
+2. از بخش API، کلید (Token) را کپی کنید
+3. داخل برنامه در کادر «کلید API» وارد و **ذخیره** کنید
+
+بدون کلید، همهٔ اطلاعات دکل از خود گوشی نمایش داده می‌شود؛ فقط **فاصلهٔ واقعی** نیازمند کلید است.
+
+---
+
+## 📁 ساختار پروژه
+
+```
+├── app/
+│   ├── build.gradle.kts           ← applicationId: ir.netsignal.monitor | minSdk 26 | target 35
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       ├── java/ir/netsignal/monitor/
+│       │   ├── MainActivity.kt        ← منطق اصلی: مجوزها، تلفن، سیم‌کارت، دکل‌ها، فاصله، تست سرعت
+│       │   ├── CellAdapter.kt         ← لیست سلول‌ها + مدل CellRow + ارقام فارسی
+│       │   ├── SignalGaugeView.kt     ← گیج ۲۷۰ درجه با عقربهٔ انیمیت‌شده
+│       │   ├── SignalBarsView.kt      ← ۵ نوار سیگنال رنگی
+│       │   └── SpeedTester.kt         ← موتور تست سرعت چند-جریانی
+│       └── res/                       ← لایوت‌ها و رشته‌های کاملاً فارسی، تم تیره Material 3
+├── gradle/wrapper/                    ← Gradle 8.7 (خودکار)
+├── .github/workflows/build-apk.yml    ← ساخت خودکار APK با هر push
+└── build.gradle.kts / settings.gradle.kts / gradle.properties
+```
+
+---
+
+## ⚠️ نکات مهم و محدودیت‌ها
+
+- برخی سازندگان (Xiaomi/Huawei) برای گزارش پایدار `CellInfo` نیاز دارند **سرویس موقعیت مکانی سیستم** روشن باشد.
+- **API 31+** از `TelephonyCallback` استفاده می‌کند؛ بازهٔ **API 26 تا 30** با `PhoneStateListener` پوشش داده می‌شود و dBm در همان بازه با فرمول GSM قدیمی محاسبه می‌گردد.
+- `dataNetworkType` از API 30 خوانده می‌شود؛ در APIهای پایین‌تر از `networkType` استفاده می‌شود.
+- فاصلهٔ دکل برای **GSM/UMTS/LTE** پشتیبانی می‌شود؛ برای 5G NR سرویس OpenCelliD پاسخ استاندارد ندارد.
+- تست سرعت به سرورهای Cloudflare وصل می‌شود (تا ~۱۰۰ مگابایت دانلود، با سقف ۱۵ ثانیه برای هر جریان) — روی بستهٔ سیم‌کارتی محدود مراقب حجم باشید.
+- تبلت‌های بدون سیم‌کارت فقط بخش تست سرعت را کارا می‌بینند (`uses-feature` تلفن/GPS اختیاری است).
+- هیچ داده‌ای به سروری فرستاده نمی‌شود؛ فقط Cloudflare (تست سرعت) و OpenCelliD (فقط با کلید خودتان).
+
+---
 
 ## 📄 مجوز
 
-[MIT](LICENSE)
+[MIT](LICENSE) — سرویس OpenCelliD دارای شرایط استفادهٔ خودش است.
