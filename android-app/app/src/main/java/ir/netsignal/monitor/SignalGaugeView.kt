@@ -31,7 +31,9 @@ class SignalGaugeView @JvmOverloads constructor(
         const val START_ANGLE = 135f          // زاویه شروع قوس (پایین-چپ)
         const val SWEEP_ANGLE = 270f          // پوشش قوس: ۲۷۰ درجه
         const val MIN_DBM = -120f             // ضعیف‌ترین سیگنال
-        const val MAX_DBM = 0f                // قوی‌ترین سیگنال
+        // بازه واقعی سیگنال‌های قابل استفاده حدود ۴۰- تا ۱۲۰- دسی‌بل است؛
+        // سقف صفر بودن باعث می‌شد سیگنال عالی (مثلاً ۵۰-) فقط نیمی از قوس را پر کند.
+        const val MAX_DBM = -40f
     }
 
     private var displayedDbm = MIN_DBM

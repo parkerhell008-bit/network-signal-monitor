@@ -84,4 +84,29 @@
     <string name="speed_status_error">خطا در تست سرعت</string>
     <string name="speed_no_internet">اتصال اینترنت یافت نشد؛ ابتدا به شبکه متصل شوید.</string>
     <string name="location_needed_for_cells">بدون مجوز «موقعیت مکانی»، اندروید شناسهٔ دکل‌های اطراف را مخفی می‌کند؛ برای دیدن دکل‌ها و فاصله، مجوز موقعیت را هم تأیید کنید.</string>
+
+    <!-- ─── کارت تاریخچه تست سرعت ─── -->
+    <string name="card_history_title">تاریخچه تست‌های سرعت</string>
+    <string name="history_auto_saved">پس از هر تست کامل، نتیجه به‌صورت خودکار روی حافظهٔ خود گوشی ذخیره می‌شود.</string>
+    <string name="history_empty">هنوز تستی ثبت نشده است؛ با اجرای تست سرعت، روند نتایج اینجا رسم می‌شود.</string>
+    <string name="history_count_fmt">تعداد نتایج ثبت‌شده: %1$d</string>
+    <string name="chart_max_fmt">حداکثر: %1$s مگابیت</string>
+    <string name="chart_legend_download">دانلود</string>
+    <string name="chart_legend_upload">آپلود</string>
+    <string name="btn_clear_history">پاک کردن تاریخچه</string>
+    <string name="history_cleared">تاریخچه پاک شد.</string>
+
+    <!-- ─── کارت اطلاعات دستگاه ─── -->
+    <string name="card_device_title">اطلاعات دستگاه</string>
+    <string name="label_device_model">مدل دستگاه</string>
+    <string name="label_device_os">نسخه اندروید</string>
+    <string name="label_device_screen">صفحه‌نمایش</string>
+    <string name="label_device_battery">باتری</string>
+    <string name="label_device_uptime">مدت روشن بودن</string>
+    <string name="label_device_cpu">معماری پردازنده</string>
+    <string name="battery_charging">در حال شارژ</string>
+    <string name="battery_discharging">روی باتری</string>
+
+    <!-- ─── سازگاری نسخه‌های قدیمی ─── -->
+    <string name="sim_requires_api22">نمایش سیم‌کارت‌ها نیازمند اندروید ۵٫۱ یا بالاتر است.</string>
 </resources>

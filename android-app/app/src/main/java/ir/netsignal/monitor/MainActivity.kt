@@ -3,13 +3,16 @@ package ir.netsignal.monitor
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.telephony.CellIdentityCdma
 import android.telephony.CellIdentityGsm
 import android.telephony.CellIdentityLte
@@ -59,6 +62,8 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.math.atan2
@@ -149,6 +154,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvUpload: TextView
     private lateinit var tvSpeedStatus: TextView
 
+    // ── تاریخچه تست سرعت ──
+    private lateinit var historyChart: HistoryChartView
+    private lateinit var tvHistoryCount: TextView
+    private lateinit var tvHistoryEmpty: TextView
+    private lateinit var llHistoryList: LinearLayout
+    private lateinit var btnClearHistory: MaterialButton
+
+    // ── اطلاعات دستگاه ──
+    private lateinit var tvDeviceModel: TextView
+    private lateinit var tvDeviceOs: TextView
+    private lateinit var tvDeviceScreen: TextView
+    private lateinit var tvDeviceBattery: TextView
+    private lateinit var tvDeviceUptime: TextView
+    private lateinit var tvDeviceCpu: TextView
+
+    private lateinit var historyDb: SpeedTestHistory
+
     // ───────────────────────── مجوزها ─────────────────────────
 
     private val permissionLauncher =
@@ -167,12 +189,14 @@ class MainActivity : AppCompatActivity() {
             getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        historyDb = SpeedTestHistory.get(this)
 
         bindViews()
         setupCellsRecyclerView()
         setupButtons()
 
         etApiKey.setText(prefs.getString(KEY_OPENCELLID, "") ?: "")
+        refreshHistory()
     }
 
     override fun onResume() {
@@ -235,6 +259,19 @@ class MainActivity : AppCompatActivity() {
         tvDownload = findViewById(R.id.tvDownload)
         tvUpload = findViewById(R.id.tvUpload)
         tvSpeedStatus = findViewById(R.id.tvSpeedStatus)
+
+        historyChart = findViewById(R.id.historyChart)
+        tvHistoryCount = findViewById(R.id.tvHistoryCount)
+        tvHistoryEmpty = findViewById(R.id.tvHistoryEmpty)
+        llHistoryList = findViewById(R.id.llHistoryList)
+        btnClearHistory = findViewById(R.id.btnClearHistory)
+
+        tvDeviceModel = findViewById(R.id.tvDeviceModel)
+        tvDeviceOs = findViewById(R.id.tvDeviceOs)
+        tvDeviceScreen = findViewById(R.id.tvDeviceScreen)
+        tvDeviceBattery = findViewById(R.id.tvDeviceBattery)
+        tvDeviceUptime = findViewById(R.id.tvDeviceUptime)
+        tvDeviceCpu = findViewById(R.id.tvDeviceCpu)
     }
 
     private fun setupCellsRecyclerView() {
@@ -248,6 +285,7 @@ class MainActivity : AppCompatActivity() {
         btnSaveKey.setOnClickListener { saveApiKey() }
         btnLocateTower.setOnClickListener { onLocateTowerClicked() }
         btnSpeedTest.setOnClickListener { toggleSpeedTest() }
+        btnClearHistory.setOnClickListener { onClearHistoryClicked() }
     }
 
     // ───────────────────────── مجوزها ─────────────────────────
@@ -306,6 +344,7 @@ class MainActivity : AppCompatActivity() {
         registerSignalListener()
         startCellPolling()
         updateNetworkType()
+        refreshDeviceInfo()
     }
 
     private fun stopAll() {
@@ -465,7 +504,8 @@ class MainActivity : AppCompatActivity() {
         @Suppress("DEPRECATION")
         val listener = object : PhoneStateListener() {
             override fun onSignalStrengthsChanged(signalStrength: SignalStrength?) {
-                signalStrength?.let { onSignalUpdated(it) }
+                // runCatching: برخی سازندگان SignalStrength ناقص می‌دهند؛ هیچ‌گاه کرش نکنیم
+                signalStrength?.let { runCatching { onSignalUpdated(it) } }
             }
         }
         phoneListener = listener
@@ -496,10 +536,16 @@ class MainActivity : AppCompatActivity() {
         lastDbm = dbm
 
         dbm?.let { gaugeView.setDbm(it) }
-        barsView.setLevel(ss.level)
+        // SignalStrength.getLevel از API ۲۳ در دسترس است؛ روی اندروید ۵ از dBm تخمین زده می‌شود
+        val level = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ss.level
+        } else {
+            levelFromDbm(dbm)
+        }
+        barsView.setLevel(level)
 
         tvDbm.text = formatDbmOrNull(dbm)
-        tvLevel.text = levelText(ss.level)
+        tvLevel.text = levelText(level)
 
         val asu: Int? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ss.cellSignalStrengths.firstNotNullOfOrNull { it.asuLevel?.takeIf { v -> v in 0..999 } }
@@ -539,13 +585,24 @@ class MainActivity : AppCompatActivity() {
     /** مقادیر نامعتبر (Integer.MAX_VALUE) را حذف می‌کند */
     private fun validSignal(v: Int): Int? = v.takeIf { it != Int.MAX_VALUE }
 
+    /** تخمین سطح ۰ تا ۴ از dBm برای اندروید ۵ و ۶ که getLevel ندارند */
+    private fun levelFromDbm(dbm: Int?): Int = when {
+        dbm == null -> -1
+        dbm >= -85 -> 4
+        dbm >= -95 -> 3
+        dbm >= -105 -> 2
+        dbm >= -115 -> 1
+        else -> 0
+    }
+
     /**
-     * محاسبهٔ قدیمی dBm برای اندروید ۸ تا ۱۰ (API 26-28) که getDbm در دسترس نیست:
+     * محاسبهٔ قدیمی dBm برای اندروید ۵ تا ۱۰ (API 21-28) که getDbm در دسترس نیست:
      * فرمول استاندارد GSM: dBm = -113 + 2 × ASU
+     * توجه: SignalStrength.isGsm فقط از API ۲۶ هست؛ به‌جای آن بازهٔ ASU بررسی می‌شود
+     * (روی دستگاه‌های CDMA مقدار ۹۹ برمی‌گردد که نامعتبر است و حذف می‌شود).
      */
     @Suppress("DEPRECATION")
     private fun legacyGsmDbm(ss: SignalStrength): Int {
-        if (!ss.isGsm) return Int.MAX_VALUE
         val asu = ss.gsmSignalStrength
         return if (asu in 1..99) asu * 2 - 113 else Int.MAX_VALUE
     }
@@ -562,6 +619,7 @@ class MainActivity : AppCompatActivity() {
             while (isActive) {
                 refreshCellInfo()
                 updateNetworkType()
+                refreshDeviceInfo()
                 delay(CELL_POLL_INTERVAL_MS)
             }
         }
@@ -614,6 +672,10 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }
+        // در حالت جایگزین، نسل شبکه را از نوع فعلی شبکه پر می‌کنیم تا نشان خالی نماند
+        if (rows.size == 1 && rows[0].generation.isBlank()) {
+            rows[0] = rows[0].copy(generation = networkTypeInfo(currentNetworkType(telephonyManager)).second)
+        }
 
         // فاصله محاسبه‌شده (در صورت وجود) به ردیف سروینگ اعمال می‌شود
         val dist = lastDistanceText
@@ -646,7 +708,11 @@ class MainActivity : AppCompatActivity() {
                     pciOrPsc = fmtId(id.pci),
                     cidOrNci = fmtId(id.ci),
                     tacOrLac = fmtId(id.tac),
-                    earfcnOrArfcn = fmtId(id.earfcn),
+                    earfcnOrArfcn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        fmtId(id.earfcn)
+                    } else {
+                        "—"
+                    },
                     dbm = validSignal(sig.dbm),
                     registered = info.isRegistered
                 )
@@ -660,7 +726,11 @@ class MainActivity : AppCompatActivity() {
                     pciOrPsc = fmtId(id.psc),
                     cidOrNci = fmtId(id.cid),
                     tacOrLac = fmtId(id.lac),
-                    earfcnOrArfcn = fmtId(id.uarfcn),
+                    earfcnOrArfcn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        fmtId(id.uarfcn)
+                    } else {
+                        "—"
+                    },
                     dbm = validSignal(sig.dbm),
                     registered = info.isRegistered
                 )
@@ -675,7 +745,11 @@ class MainActivity : AppCompatActivity() {
                     pciOrPsc = "BSIC " + fmtId(bsic),
                     cidOrNci = fmtId(id.cid),
                     tacOrLac = fmtId(id.lac),
-                    earfcnOrArfcn = fmtId(id.arfcn),
+                    earfcnOrArfcn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        fmtId(id.arfcn)
+                    } else {
+                        "—"
+                    },
                     dbm = validSignal(sig.dbm),
                     registered = info.isRegistered
                 )
@@ -805,7 +879,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateServingTowerCard(row: CellRow) {
         lastServingGeneration = row.generation
-        tvServingRat.text = row.generation + " – " + row.rat
+        tvServingRat.text = if (row.generation.isBlank()) {
+            row.rat
+        } else {
+            row.generation + " – " + row.rat
+        }
         tvServingPci.text = row.pciOrPsc
         tvServingCid.text = row.cidOrNci
         tvServingTac.text = row.tacOrLac
@@ -836,6 +914,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshDualSim() {
         llSimList.removeAllViews()
+        // SubscriptionManager.activeSubscriptionInfoList از API ۲۲ در دسترس است
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP_MR1) {
+            tvSimCount.text = "—"
+            llSimList.addView(makeInfoRow(getString(R.string.sim_requires_api22)))
+            return
+        }
         if (!hasPhonePermission()) {
             tvSimCount.text = "—"
             llSimList.addView(makeInfoRow(getString(R.string.sim_no_permission)))
@@ -853,9 +937,14 @@ class MainActivity : AppCompatActivity() {
         }
         tvSimCount.text = getString(R.string.sim_count_fmt, subs.size).toPersianDigits()
         for (sub in subs) {
-            val subTm = try {
-                telephonyManager.createForSubscriptionId(sub.subscriptionId)
-            } catch (e: Exception) {
+            // createForSubscriptionId از API ۲۳ در دسترس است
+            val subTm: TelephonyManager? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    telephonyManager.createForSubscriptionId(sub.subscriptionId)
+                } catch (e: Exception) {
+                    null
+                }
+            } else {
                 null
             }
             val typeLabel = if (subTm != null) {
@@ -870,6 +959,7 @@ class MainActivity : AppCompatActivity() {
             llSimList.addView(
                 makeInfoRow(
                     getString(R.string.sim_row_fmt, slotNumber, sub.simSlotIndex, carrier, typeLabel)
+                        .toPersianDigits()
                 )
             )
         }
@@ -986,10 +1076,11 @@ class MainActivity : AppCompatActivity() {
         val mcc = cell.mcc ?: return null
         val mnc = cell.mnc ?: return null
         // فیلد radio دقت جستجو در OpenCelliD را بالا می‌برد
+        // توجه: OpenCelliD برای UMTS کلید «umts» می‌خواهد، نه «wcdma»
         val radio = when (cell.radio) {
             "lte" -> "lte"
             "nr" -> "nr"
-            "umts" -> "umts"
+            "wcdma", "umts" -> "umts"
             else -> "gsm"
         }
         return "https://opencellid.org/cell/get" +
@@ -1011,7 +1102,14 @@ class MainActivity : AppCompatActivity() {
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
             if (code !in 200..299) {
-                throw IOException("کد پاسخ سرور: $code")
+                // اگر سرور پیام خطای خوانا فرستاده، همان را نشان می‌دهیم (مثلاً کلید نامعتبر)
+                val serverMessage = runCatching {
+                    val obj = JSONObject(body)
+                    listOf("message", "error", "description")
+                        .firstOrNull { obj.optString(it).isNotEmpty() }
+                        ?.let { k -> obj.optString(k) }
+                }.getOrNull()
+                throw IOException(serverMessage ?: ("کد پاسخ سرور: $code"))
             }
             val obj = JSONObject(body)
             if (obj.has("lat") && obj.has("lon")) {
@@ -1137,6 +1235,11 @@ class MainActivity : AppCompatActivity() {
                     tvUpload.text = formatMbps(result.uploadMbps)
                     tvSpeedStatus.text = getString(R.string.speed_status_done)
                     finishSpeedUi()
+                    // ذخیرهٔ خودکار نتیجه در تاریخچهٔ محلی و تازه‌سازی نمودار
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        historyDb.insert(result)
+                        withContext(Dispatchers.Main) { refreshHistory() }
+                    }
                 }
 
                 override fun onError(message: String) {
@@ -1157,11 +1260,110 @@ class MainActivity : AppCompatActivity() {
         progressSpeed.setProgressCompat(0, true)
     }
 
+    @Suppress("DEPRECATION")
     private fun isNetworkOnline(): Boolean {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork ?: return false
-        val capabilities = cm.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        // ConnectivityManager.activeNetwork از API ۲۳ در دسترس است
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = cm.activeNetwork ?: return false
+            val capabilities = cm.getNetworkCapabilities(network) ?: return false
+            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }
+        val info = cm.activeNetworkInfo
+        return info != null && info.isConnected
+    }
+
+    // ───────────────────────── تاریخچه تست سرعت ─────────────────────────
+
+    private fun refreshHistory() {
+        lifecycleScope.launch {
+            val entries = withContext(Dispatchers.IO) { historyDb.recent(30) }
+            // نمودار از قدیم به جدید رسم می‌شود؛ تاریخچه از جدید به قدیم برمی‌گردد
+            historyChart.setData(entries.asReversed())
+            tvHistoryCount.text =
+                getString(R.string.history_count_fmt, entries.size).toPersianDigits()
+            if (entries.isEmpty()) {
+                tvHistoryEmpty.visibility = View.VISIBLE
+                llHistoryList.removeAllViews()
+                return@launch
+            }
+            tvHistoryEmpty.visibility = View.GONE
+            llHistoryList.removeAllViews()
+            val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.US)
+            for (entry in entries.take(8)) {
+                val date = dateFormat.format(Date(entry.timestampMs)).toPersianDigits()
+                llHistoryList.addView(
+                    makeInfoRow(
+                        date +
+                            " — دانلود " + formatNumber1f(entry.downloadMbps) +
+                            " • آپلود " + formatNumber1f(entry.uploadMbps) +
+                            " • پینگ " + formatNumber1f(entry.pingMs) + "ms"
+                    )
+                )
+            }
+        }
+    }
+
+    private fun onClearHistoryClicked() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            historyDb.clear()
+            withContext(Dispatchers.Main) {
+                refreshHistory()
+                toast(getString(R.string.history_cleared))
+            }
+        }
+    }
+
+    // ───────────────────────── اطلاعات دستگاه ─────────────────────────
+
+    private fun refreshDeviceInfo() {
+        val manufacturer = Build.MANUFACTURER.replaceFirstChar { it.uppercase(Locale.US) }
+        tvDeviceModel.text = (manufacturer + " " + Build.MODEL).toPersianDigits()
+        tvDeviceOs.text =
+            ("اندروید " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")").toPersianDigits()
+        val metrics = resources.displayMetrics
+        tvDeviceScreen.text =
+            (metrics.widthPixels.toString() + " × " + metrics.heightPixels + " پیکسل — چگالی " +
+                String.format(Locale.US, "%.1f", metrics.density) + "x").toPersianDigits()
+        tvDeviceBattery.text = batteryText()
+        tvDeviceUptime.text = formatUptime(SystemClock.elapsedRealtime())
+        tvDeviceCpu.text = Build.SUPPORTED_ABIS.firstOrNull()
+            ?.uppercase(Locale.US)
+            ?.toPersianDigits()
+            ?: "—"
+    }
+
+    /** درصد باتری و وضعیت شارژ از broadcast سیستمی (بدون ثبت گیرنده) */
+    private fun batteryText(): String {
+        return try {
+            val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level < 0 || scale <= 0) {
+                "—"
+            } else {
+                val percent = (level * 100) / scale
+                val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    status == BatteryManager.BATTERY_STATUS_FULL
+                percent.toPersianDigits() + "٪ — " +
+                    getString(if (charging) R.string.battery_charging else R.string.battery_discharging)
+            }
+        } catch (e: Exception) {
+            "—"
+        }
+    }
+
+    private fun formatUptime(elapsedMs: Long): String {
+        val totalMinutes = elapsedMs / 60_000
+        val days = totalMinutes / (24 * 60)
+        val hours = (totalMinutes % (24 * 60)) / 60
+        val minutes = totalMinutes % 60
+        return when {
+            days > 0 -> (days.toString() + " روز و " + hours + " ساعت").toPersianDigits()
+            hours > 0 -> (hours.toString() + " ساعت و " + minutes + " دقیقه").toPersianDigits()
+            else -> (minutes.toString() + " دقیقه").toPersianDigits()
+        }
     }
 
     // ───────────────────────── ابزارهای قالب‌بندی ─────────────────────────

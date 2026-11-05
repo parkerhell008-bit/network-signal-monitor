@@ -73,7 +73,8 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
 
         fun bind(row: CellRow) {
             val context: Context = itemView.context
-            badge.text = row.generation
+            // اگر ردیف از مسیر جایگزین (بدون CellInfo) آمده باشد نسل خالی است
+            badge.text = row.generation.ifBlank { "—" }
             badge.setTextColor(badgeColor(context, row.generation))
             rat.text = row.rat + " • " + context.getString(
                 if (row.registered) R.string.tag_serving else R.string.tag_neighbor

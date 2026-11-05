@@ -1,8 +1,8 @@
-# 📡 مانیتور سیگنال شبکه — اپ اندروید | Network Signal Monitor
+# 📡 مانیتور سیگنال شبکه — اپ اندروید نیتیو | Network Signal Monitor
 
-اپلیکیشن اندرویدی (Kotlin) برای **پایش لحظه‌ای وضعیت سیم‌کارت و شبکهٔ موبایل**، نمایش اطلاعات کامل **دکل مخابراتی متصل**، **فاصلهٔ GPS تا دکل** (با سرویس OpenCelliD) و اجرای **تست سرعت اینترنت** (پینگ / دانلود / آپلود) — همه در یک صفحهٔ تیره و کاملاً فارسی (RTL).
+اپلیکیشن **اندروید نیتیو (Kotlin)** برای **پایش لحظه‌ای وضعیت سیم‌کارت و شبکهٔ موبایل**، نمایش اطلاعات کامل **دکل مخابراتی متصل**، **فاصلهٔ GPS تا دکل** (با سرویس OpenCelliD)، اجرای **تست سرعت اینترنت** (پینگ / دانلود / آپلود) با **تاریخچه و نمودار روند** و **اطلاعات کامل دستگاه** — همه در یک صفحهٔ تیره و کاملاً فارسی (RTL).
 
-> سازگار با **اندروید ۸ به بالا (API 26+)** — یعنی تقریباً همهٔ گوشی‌های فعال دنیا (~۹۷٪).
+> سازگار با **اندروید ۵ به بالا (API 21+)** — یعنی عملاً همهٔ گوشی‌های فعال دنیا.
 
 ---
 
@@ -17,11 +17,14 @@
    - در تنظیمات گوشی، «نصب از منابع ناشناس» را برای مرورگر/فایل‌منیجر خود موقتاً فعال کنید.
    - APK از نوع Debug است و با کلید debug امضا شده — برای انتشار در استور، نسخهٔ Release امضاشده بسازید (راهنما در ادامه).
 
+همچنین **سورس کامل پروژهٔ اندروید** به‌صورت ZIP از این مسیر قابل دانلود است:
+[`public/downloads/android-signal-app.zip`](public/downloads/android-signal-app.zip)
+
 ---
 
 ## ✨ امکانات
 
-- **گیج ۲۷۰ درجه‌ای قدرت سیگنال** از `0` تا `-120 dBm` با عقربهٔ متحرک و گرادیان رنگی قرمز → زرد → سبز، به‌همراه **۵ نوار سیگنال**.
+- **گیج ۲۷۰ درجه‌ای قدرت سیگنال** از `-40` تا `-120 dBm` با عقربهٔ متحرک و گرادیان رنگی قرمز → زرد → سبز، به‌همراه **۵ نوار سیگنال**.
 - **جزئیات قدرت سیگنال**: `dBm`، `ASU`، سطح سیگنال و در LTE/5G مقادیر `RSRP`، `RSRQ`، `SNR` و `RSSI`.
 - **تشخیص نسل و نوع شبکه**: نگاشت کامل همهٔ ثابت‌های `NETWORK_TYPE_*` — از `5G NR` و `LTE-A` تا `EDGE` و `IWLAN`.
 - **وضعیت شبکه و سیم‌کارت**: اپراتور شبکه و سیم‌کارت، `MCC/MNC`، کشور، وضعیت سیم‌کارت (PIN/PUK)، **رومینگ**، وضعیت و فعالیت داده.
@@ -29,13 +32,15 @@
 - **دو سیم‌کارت (Dual SIM)**: فهرست اشتراک‌های فعال با اپراتور و نوع شبکهٔ جداگانهٔ هر سیم.
 - **فاصله تا دکل**: GPS (FusedLocationProvider) + مختصات دکل از [OpenCelliD](https://opencellid.org) → فاصلهٔ **هاورساین** به متر + **جهت به فارسی** (شمال، شمال‌شرقی و…).
 - **تست سرعت اینترنت**: پینگ (۱۰ نمونه + جیتر)، دانلود با **۴ جریان موازی** (تا ۲۵MB در هر جریان، سقف ۱۵ ثانیه) و آپلود ۴ درخواست موازی ۲ مگابایتی — با نوار پیشرفت، نرخ لحظه‌ای، ارقام فارسی و امکان لغو.
+- **📈 تاریخچهٔ تست‌ها (جدید)**: ذخیرهٔ خودکار هر نتیجهٔ کامل روی SQLite خود گوشی، **نمودار خطی روند دانلود/آپلود** (۱۵ نتیجهٔ آخر) و فهرست نتایج اخیر با دکمهٔ پاک‌سازی.
+- **📱 اطلاعات دستگاه (جدید)**: مدل و سازنده، نسخهٔ اندروید و API، رزولوشن و چگالی صفحه‌نمایش، درصد و وضعیت باتری، مدت روشن بودن و معماری پردازنده.
 
 ---
 
 ## 📋 پیش‌نیازها (برای build از سورس)
 
 - **Android Studio** (Koala یا جدیدتر) با **JDK 17** — یا فقط خط فرمان با JDK 17
-- Gradle از طریق **wrapper** خودکار تأمین می‌شود (`gradle-8.7` + AGP 8.5.2 + Kotlin 1.9.24)
+- Gradle از طریق **wrapper** خودکار تأمین می‌شود (`gradle-8.7` + AGP 8.2.2 + Kotlin 1.9.22)
 - برای دیدن اطلاعات دکل حتماً روی **گوشی واقعی** اجرا کنید (امولاتور اطلاعات دکل واقعی ندارد)
 
 ## 🛠 ساخت APK
@@ -43,13 +48,14 @@
 ### روش ۱: خط فرمان (بدون Android Studio)
 
 ```bash
+cd android-app
 ./gradlew assembleDebug
-# خروجی: android-app/build/outputs/apk/debug/app-debug.apk
+# خروجی: android-app/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### روش ۲: Android Studio
 
-1. `File > Open` → پوشهٔ ریشهٔ مخزن را باز کنید
+1. `File > Open` → پوشهٔ `android-app` را باز کنید
 2. صبر کنید تا **Gradle Sync** تمام شود
 3. گوشی را با USB Debugging وصل کنید و **Run ▶** بزنید؛ یا `Build > Build APK(s)`
 
@@ -57,7 +63,7 @@
 
 ```bash
 keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -keysize 2048 -validity 10000
-./gradlew assembleRelease   # پس از تنظیم signingConfigs در android-app/build.gradle.kts
+cd android-app && ./gradlew assembleRelease   # پس از تنظیم signingConfigs در app/build.gradle.kts
 ```
 
 ---
@@ -87,19 +93,24 @@ keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -k
 
 ```
 ├── android-app/
-│   ├── build.gradle.kts           ← applicationId: ir.netsignal.monitor | minSdk 26 | target 34
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/ir/netsignal/monitor/
-│       │   ├── MainActivity.kt        ← منطق اصلی: مجوزها، تلفن، سیم‌کارت، دکل‌ها، فاصله، تست سرعت
-│       │   ├── CellAdapter.kt         ← لیست سلول‌ها + مدل CellRow + ارقام فارسی
-│       │   ├── SignalGaugeView.kt     ← گیج ۲۷۰ درجه با عقربهٔ انیمیت‌شده
-│       │   ├── SignalBarsView.kt      ← ۵ نوار سیگنال رنگی
-│       │   └── SpeedTester.kt         ← موتور تست سرعت چند-جریانی
-│       └── res/                       ← لایوت‌ها و رشته‌های کاملاً فارسی، تم تیره Material 3
-├── gradle/wrapper/                    ← Gradle 8.7 (خودکار)
-├── .github/workflows/build-apk.yml    ← ساخت خودکار APK با هر push
-└── build.gradle.kts / settings.gradle.kts / gradle.properties
+│   ├── settings.gradle.kts        ← ریشهٔ پروژهٔ Gradle (ماژول :app)
+│   ├── build.gradle.kts           ← AGP 8.2.2 + Kotlin 1.9.22
+│   ├── gradle/wrapper/            ← Gradle 8.7 (خودکار)
+│   └── app/
+│       ├── build.gradle.kts       ← applicationId: ir.netsignal.monitor | minSdk 21 | target 34
+│       └── src/main/
+│           ├── AndroidManifest.xml
+│           ├── java/ir/netsignal/monitor/
+│           │   ├── MainActivity.kt       ← منطق اصلی: مجوزها، تلفن، سیم‌کارت، دکل‌ها، فاصله، تست سرعت، تاریخچه، دستگاه
+│           │   ├── CellAdapter.kt        ← لیست سلول‌ها + مدل CellRow + ارقام فارسی
+│           │   ├── SignalGaugeView.kt    ← گیج ۲۷۰ درجه با عقربهٔ انیمیت‌شده
+│           │   ├── SignalBarsView.kt     ← ۵ نوار سیگنال رنگی
+│           │   ├── SpeedTester.kt        ← موتور تست سرعت چند-جریانی
+│           │   ├── SpeedTestHistory.kt   ← ذخیرهٔ نتایج روی SQLite خود گوشی (جدید)
+│           │   └── HistoryChartView.kt   ← نمودار خطی روند نتایج (جدید)
+│           └── res/                       ← لایوت‌ها و رشته‌های کاملاً فارسی، تم تیره Material 3
+├── .github/workflows/build-apk.yml ← ساخت خودکار APK با هر push
+└── public/downloads/android-signal-app.zip ← سورس ZIP آمادهٔ دانلود
 ```
 
 ---
@@ -107,12 +118,12 @@ keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -k
 ## ⚠️ نکات مهم و محدودیت‌ها
 
 - برخی سازندگان (Xiaomi/Huawei) برای گزارش پایدار `CellInfo` نیاز دارند **سرویس موقعیت مکانی سیستم** روشن باشد.
-- **API 31+** از `TelephonyCallback` استفاده می‌کند؛ بازهٔ **API 26 تا 30** با `PhoneStateListener` پوشش داده می‌شود و dBm در همان بازه با فرمول GSM قدیمی محاسبه می‌گردد.
+- روی **API 21-22** (اندروید ۵) سطح سیگنال از dBm تخمین زده می‌شود و فهرست سیم‌کارت‌های دوتایی نیازمند اندروید ۵٫۱ به بالا است.
 - `dataNetworkType` از API 30 خوانده می‌شود؛ در APIهای پایین‌تر از `networkType` استفاده می‌شود.
 - فاصلهٔ دکل برای **GSM/UMTS/LTE** پشتیبانی می‌شود؛ برای 5G NR سرویس OpenCelliD پاسخ استاندارد ندارد.
 - تست سرعت به سرورهای Cloudflare وصل می‌شود (تا ~۱۰۰ مگابایت دانلود، با سقف ۱۵ ثانیه برای هر جریان) — روی بستهٔ سیم‌کارتی محدود مراقب حجم باشید.
 - تبلت‌های بدون سیم‌کارت فقط بخش تست سرعت را کارا می‌بینند (`uses-feature` تلفن/GPS اختیاری است).
-- هیچ داده‌ای به سروری فرستاده نمی‌شود؛ فقط Cloudflare (تست سرعت) و OpenCelliD (فقط با کلید خودتان).
+- **هیچ داده‌ای به سروری فرستاده نمی‌شود**؛ تاریخچه فقط روی خود گوشی ذخیره می‌شود و فقط Cloudflare (تست سرعت) و OpenCelliD (فقط با کلید خودتان) فراخوانی می‌شوند.
 
 ---
 
