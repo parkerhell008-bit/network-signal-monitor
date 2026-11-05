@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardTab } from "@/components/network/dashboard-tab";
 import { SpeedTestTab } from "@/components/network/speedtest-tab";
@@ -9,7 +10,8 @@ import { TowerTab } from "@/components/network/tower-tab";
 import { AndroidTab } from "@/components/network/android-tab";
 import { SignalBars } from "@/components/network/signal-bars";
 import { useNetworkInfo } from "@/hooks/use-network-info";
-import { qualityMeta, connectionLabel } from "@/lib/persian";
+import { useSpeedTest } from "@/hooks/use-speedtest";
+import { computeQualityScore, qualityMeta, connectionLabel } from "@/lib/persian";
 import { RadioTower, Activity, Smartphone, Info, LayoutDashboard, Gauge } from "lucide-react";
 
 /** پوستهٔ اصلی مانیتور شبکه */
@@ -17,6 +19,48 @@ export function MonitorApp() {
   const [tab, setTab] = useState("dashboard");
   const net = useNetworkInfo();
   const meta = qualityMeta(net.qualityScore);
+
+  // state تست سرعت در سطح پوسته نگه داشته می‌شود تا عوض‌کردن تب، تست در حال اجرا را قطع نکند
+  const speedTest = useSpeedTest();
+  const { state } = speedTest;
+  const [historyVersion, setHistoryVersion] = useState(0);
+
+  // ذخیرهٔ خودکار نتیجه پس از پایان تست (یک‌بار برای هر اجرا)
+  const savedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      state.phase === "done" &&
+      state.downloadMbps !== null &&
+      savedRef.current !== String(state.startedAt)
+    ) {
+      savedRef.current = String(state.startedAt);
+      fetch("/api/speedtest/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          downloadMbps: state.downloadMbps,
+          uploadMbps: state.uploadMbps ?? 0,
+          pingMs: state.pingMs ?? 0,
+          jitterMs: state.jitterMs ?? 0,
+          connectionType: net.type ?? null,
+          effectiveType: net.effectiveType ?? null,
+          // امتیاز بر اساس مقادیر واقعی اندازه‌گیری‌شدهٔ همین تست
+          qualityScore: computeQualityScore(
+            state.downloadMbps,
+            state.pingMs ?? undefined,
+            net.effectiveType ?? undefined
+          ),
+        }),
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("save failed");
+          toast.success("نتیجهٔ تست ذخیره شد");
+          setHistoryVersion((v) => v + 1);
+        })
+        .catch(() => toast.error("ذخیرهٔ نتیجه ناموفق بود"));
+    }
+  }, [state, net]);
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -101,7 +145,7 @@ export function MonitorApp() {
             <DashboardTab />
           </TabsContent>
           <TabsContent value="speedtest" className="mt-0 focus-visible:outline-none">
-            <SpeedTestTab />
+            <SpeedTestTab speedTest={speedTest} historyVersion={historyVersion} />
           </TabsContent>
           <TabsContent value="device" className="mt-0 focus-visible:outline-none">
             <DeviceTab />

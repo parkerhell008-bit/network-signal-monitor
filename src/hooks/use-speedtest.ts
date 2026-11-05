@@ -127,7 +127,8 @@ export function useSpeedTest() {
       }
       const dlSecs = (performance.now() - dlStart) / 1000;
       // اگر در میانه قطع شد، حجم واقعی دریافتی ملاک است نه حجم کامل
-      const downloadMbps = (received * 8) / dlSecs / 1_000_000;
+      // (محافظت از تقسیم بر صفر → Infinity)
+      const downloadMbps = dlSecs > 0.01 ? (received * 8) / dlSecs / 1_000_000 : 0;
       if (!mounted.current) return;
       setState((s) => ({
         ...s,
@@ -155,18 +156,19 @@ export function useSpeedTest() {
           }, 150)
         : null;
       try {
-        await fetch(`/api/speedtest/upload?t=${Date.now()}`, {
+        const upRes = await fetch(`/api/speedtest/upload?t=${Date.now()}`, {
           method: "POST",
           body: upBlob,
           cache: "no-store",
           signal,
           headers: { "Content-Type": "application/octet-stream" },
         });
+        if (!upRes.ok) throw new Error("خطا در تست آپلود");
       } finally {
         if (upTimer) clearInterval(upTimer);
       }
       const upSecs = (performance.now() - upStart) / 1000;
-      const uploadMbps = (UPLOAD_BYTES * 8) / upSecs / 1_000_000;
+      const uploadMbps = upSecs > 0.01 ? (UPLOAD_BYTES * 8) / upSecs / 1_000_000 : 0;
       if (!mounted.current) return;
       setState((s) => ({
         ...s,

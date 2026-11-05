@@ -66,3 +66,13 @@ android-app/build/
 android-app/app/build/
 android-app/local.properties
 .zscripts
+
+# sandbox-only scaffolding (not part of the project)
+/examples/
+/mini-services/
+/skills/
+/tests/
+/download/
+/upload/
+/tool-results/
+Caddyfile

@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   FolderGit2,
 } from "lucide-react";
+import { toFa } from "@/lib/persian";
 
 const FEATURES = [
   {
@@ -163,8 +164,4 @@ export function AndroidTab() {
       </Card>
     </div>
   );
-}
-
-function toFa(n: number): string {
-  return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 }

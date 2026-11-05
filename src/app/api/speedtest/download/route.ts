@@ -7,7 +7,10 @@ const MAX_BYTES = 26_214_400; // حداکثر ۲۵ مگابایت
 
 // دانلود: جریان بایت‌های تصادفی برای سنجش پهنای باند واقعی کلاینت
 export async function GET(req: NextRequest) {
-  const requested = Number(req.nextUrl.searchParams.get("bytes") ?? 10_485_760);
+  const raw = req.nextUrl.searchParams.get("bytes");
+  // پارامتر غایب یا خالی → مقدار پیش‌فرض ۱۰ مگابایت
+  const requested =
+    raw === null || raw.trim() === "" ? 10_485_760 : Number(raw);
   const total = Number.isFinite(requested)
     ? Math.max(0, Math.min(MAX_BYTES, Math.floor(requested)))
     : 10_485_760;

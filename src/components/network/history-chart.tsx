@@ -31,7 +31,7 @@ export function HistoryChart({ data }: { data: ChartPoint[] }) {
   }));
 
   return (
-    <div dir="ltr" className="h-64 w-full select-none" aria-label="نمودار روند تست‌های سرعت">
+    <div dir="ltr" role="img" aria-label="نمودار روند تست‌های سرعت" className="h-64 w-full select-none">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="#27272a" strokeDasharray="3 3" />
@@ -47,7 +47,7 @@ export function HistoryChart({ data }: { data: ChartPoint[] }) {
             tick={{ fill: "#71717a", fontSize: 10 }}
             stroke="#3f3f46"
             width={42}
-            tickFormatter={(v: number) => String(v)}
+            tickFormatter={(v: number) => faNum(v, 0)}
           />
           <YAxis
             yAxisId="ping"

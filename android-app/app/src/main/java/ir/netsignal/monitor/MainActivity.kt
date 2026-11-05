@@ -51,6 +51,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -503,7 +504,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onSignalUpdated(ss: SignalStrength) {
-        val dbmRaw = ss.dbm
+        // SignalStrength.getDbm() از API 29 در دسترس است؛ در API 26-28 از محاسبهٔ قدیمی GSM استفاده می‌کنیم
+        val dbmRaw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ss.dbm
+        } else {
+            @Suppress("DEPRECATION")
+            legacyGsmDbm(ss)
+        }
         val dbm = dbmRaw.takeIf { it != Int.MAX_VALUE && it != 0 }
         lastDbm = dbm
 
@@ -548,6 +555,17 @@ class MainActivity : AppCompatActivity() {
 
     /** مقادیر نامعتبر (Integer.MAX_VALUE) را حذف می‌کند */
     private fun validSignal(v: Int): Int? = v.takeIf { it != Int.MAX_VALUE }
+
+    /**
+     * محاسبهٔ قدیمی dBm برای اندروید ۸ تا ۱۰ (API 26-28) که getDbm در دسترس نیست:
+     * فرمول استاندارد GSM: dBm = -113 + 2 × ASU
+     */
+    @Suppress("DEPRECATION")
+    private fun legacyGsmDbm(ss: SignalStrength): Int {
+        if (!ss.isGsm) return Int.MAX_VALUE
+        val asu = ss.gsmSignalStrength
+        return if (asu in 1..99) asu * 2 - 113 else Int.MAX_VALUE
+    }
 
     private fun formatDbmOrNull(v: Int?): String =
         v?.let { it.toString().toPersianDigits() + " dBm" } ?: "—"
@@ -964,6 +982,10 @@ class MainActivity : AppCompatActivity() {
                 lastDistanceText = distStr
                 tvTowerDistance.text = distStr
                 tvTowerBearing.text = formatBearing(bearing)
+            } catch (e: TimeoutCancellationException) {
+                // تایم‌اوت ۳۰ ثانیه‌ای GPS نباید بی‌صدا رد شود — پیام واضح نمایش داده می‌شود
+                tvTowerDistance.text =
+                    getString(R.string.err_generic, getString(R.string.err_gps_failed))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

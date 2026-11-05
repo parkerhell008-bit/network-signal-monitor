@@ -17,7 +17,7 @@ export function SignalBars({ bars, color = "#10b981", size = "md" }: SignalBarsP
   const width = { sm: 4, md: 5, lg: 7 }[size];
 
   return (
-    <div className="flex items-end gap-[3px]" aria-label={`${bars} از ۵ نوار آنتن`}>
+    <div role="img" className="flex items-end gap-[3px]" aria-label={`${bars} از ۵ نوار آنتن`}>
       {hs.map((h, i) => {
         const active = i < bars;
         return (

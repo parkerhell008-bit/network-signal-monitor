@@ -6,8 +6,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const h = req.headers;
   const forwarded = h.get("x-forwarded-for");
+  // آخرین (سمت راست‌ترین) مقدار X-Forwarded-For توسط پراکسی معتمد ما اضافه شده
+  // و قابل جعل توسط کلاینت نیست؛ اولین مقدار قابل جعل است.
   const ip =
-    forwarded?.split(",")[0]?.trim() ||
+    forwarded?.split(",").pop()?.trim() ||
     h.get("x-real-ip") ||
     h.get("cf-connecting-ip") ||
     null;

@@ -74,12 +74,15 @@ export function DeviceTab() {
       removeEventListener: (t: string, cb: () => void) => void;
     };
     let bat: BatteryLike | null = null;
+    let disposed = false;
     const update = () => {
-      if (bat) setBattery({ level: bat.level, charging: bat.charging });
+      if (bat && !disposed) setBattery({ level: bat.level, charging: bat.charging });
     };
     (navigator as Navigator & { getBattery?: () => Promise<BatteryLike> })
       .getBattery?.()
       .then((b) => {
+        // اگر تب پیش از پاسخ باتری بسته شده باشد، listener ثبت نمی‌شود
+        if (disposed) return;
         bat = b;
         update();
         b.addEventListener("levelchange", update);
@@ -87,6 +90,7 @@ export function DeviceTab() {
       })
       .catch(() => {});
     return () => {
+      disposed = true;
       if (bat) {
         bat.removeEventListener("levelchange", update);
         bat.removeEventListener("chargingchange", update);

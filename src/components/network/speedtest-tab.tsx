@@ -1,15 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/network/stat-card";
 import { HistoryChart } from "@/components/network/history-chart";
-import { useSpeedTest, type SpeedTestState } from "@/hooks/use-speedtest";
+import { type useSpeedTest, type SpeedTestState } from "@/hooks/use-speedtest";
 import { useNetworkInfo } from "@/hooks/use-network-info";
-import { faNum, faDateTime, effectiveTypeLabel, computeQualityScore, connectionLabel, toFa } from "@/lib/persian";
+import { faNum, faDateTime, effectiveTypeLabel, connectionLabel, toFa } from "@/lib/persian";
 import {
   ArrowDown,
   ArrowUp,
@@ -33,9 +32,16 @@ interface HistoryItem {
   createdAt: string;
 }
 
+interface SpeedTestTabProps {
+  /** state تست در سطح پوستهٔ اصلی نگه داشته می‌شود تا با تعویض تب از دست نرود */
+  speedTest: ReturnType<typeof useSpeedTest>;
+  /** با هر تغییر، تاریخچه دوباره بارگذاری می‌شود */
+  historyVersion: number;
+}
+
 /** تب تست سرعت: اجرای تست زنده + تاریخچهٔ نتایج */
-export function SpeedTestTab() {
-  const { state, run, cancel } = useSpeedTest();
+export function SpeedTestTab({ speedTest, historyVersion }: SpeedTestTabProps) {
+  const { state, run, cancel } = speedTest;
   const net = useNetworkInfo();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -43,6 +49,7 @@ export function SpeedTestTab() {
   const loadHistory = useCallback(async () => {
     try {
       const res = await fetch("/api/speedtest/history", { cache: "no-store" });
+      if (!res.ok) throw new Error("history fetch failed");
       const data = (await res.json()) as { items: HistoryItem[] };
       setHistory(data.items ?? []);
     } catch {
@@ -54,33 +61,7 @@ export function SpeedTestTab() {
 
   useEffect(() => {
     loadHistory();
-  }, [loadHistory]);
-
-  // ذخیرهٔ خودکار نتیجه پس از پایان تست
-  const savedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (state.phase === "done" && state.downloadMbps !== null && savedRef.current !== String(state.startedAt)) {
-      savedRef.current = String(state.startedAt);
-      fetch("/api/speedtest/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          downloadMbps: state.downloadMbps,
-          uploadMbps: state.uploadMbps ?? 0,
-          pingMs: state.pingMs ?? 0,
-          jitterMs: state.jitterMs ?? 0,
-          connectionType: net.type ?? null,
-          effectiveType: net.effectiveType ?? null,
-          qualityScore: computeQualityScore(net.downlinkMbps, net.rttMs, net.effectiveType),
-        }),
-      })
-        .then(() => {
-          toast.success("نتیجهٔ تست ذخیره شد");
-          loadHistory();
-        })
-        .catch(() => toast.error("ذخیرهٔ نتیجه ناموفق بود"));
-    }
-  }, [state, net, loadHistory]);
+  }, [loadHistory, historyVersion]);
 
   const running = state.phase === "ping" || state.phase === "download" || state.phase === "upload";
 
@@ -259,8 +240,12 @@ function useGaugeValue(state: SpeedTestState): number {
       target = 0;
     }
     // هموارسازی مقدار فقط داخل تیک‌های زمان‌بند (بدون setState همگام)
+    // وقتی به هدف رسید دقیقاً روی همان مقدار می‌نشیند تا React از رندر اضافی صرف‌نظر کند
     const i = setInterval(() => {
-      setSmooth((prev) => prev + (target - prev) * 0.25);
+      setSmooth((prev) => {
+        const next = prev + (target - prev) * 0.25;
+        return Math.abs(target - next) < 0.05 ? target : next;
+      });
     }, 80);
     return () => clearInterval(i);
   }, [state.phase, state.liveMbps, state.downloadMbps]);
@@ -287,7 +272,14 @@ function SpeedGauge({ value, state }: { value: number; state: SpeedTestState }) 
       : "Mbps دانلود";
 
   return (
-    <div className="relative" aria-label={`سرعت فعلی: ${display} مگابیت بر ثانیه`}>
+    <div
+      role="img"
+      aria-label={
+        isPing
+          ? `تأخیر فعلی: ${display} میلی‌ثانیه`
+          : `سرعت فعلی: ${display} مگابیت بر ثانیه`
+      }
+    >
       <SpeedRing value={value} color={color} size={230} />
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className="text-4xl font-extrabold text-zinc-100 tabular-nums" dir="ltr">
