@@ -84,16 +84,16 @@ class SpeedTestHistory private constructor(context: Context) :
         writableDatabase.execSQL("DELETE FROM $TABLE")
     }
 
-    private companion object {
-        const val DB_NAME = "speed_history.db"
-        const val DB_VERSION = 1
-        const val TABLE = "speed_results"
-        const val COL_ID = "id"
-        const val COL_TS = "ts"
-        const val COL_PING = "ping"
-        const val COL_JITTER = "jitter"
-        const val COL_DOWN = "download"
-        const val COL_UP = "upload"
+    companion object {
+        private const val DB_NAME = "speed_history.db"
+        private const val DB_VERSION = 1
+        private const val TABLE = "speed_results"
+        private const val COL_ID = "id"
+        private const val COL_TS = "ts"
+        private const val COL_PING = "ping"
+        private const val COL_JITTER = "jitter"
+        private const val COL_DOWN = "download"
+        private const val COL_UP = "upload"
 
         @Volatile
         private var instance: SpeedTestHistory? = null
