@@ -28,6 +28,15 @@ jobs:
             unzip -l "$p/android.jar" 2>/dev/null | grep -E "telephony/(GsmCellLocation|TelephonyCallback|SignalStrength|CellIdentityNr)\.class" || echo "  (telephony classes NOT found in this jar)"
           done
 
+      - name: Install real Android platform 34
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          yes | "$SDKM" --install "platforms;android-34" > /dev/null
+          echo "=== verify installed jar ==="
+          javap -cp "$ANDROID_HOME/platforms/android-34/android.jar" android.telephony.GsmCellLocation | head -5
+          javap -cp "$ANDROID_HOME/platforms/android-34/android.jar" android.telephony.SignalStrength | grep -E "getDbm|getLevel" | head -3
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v3
 

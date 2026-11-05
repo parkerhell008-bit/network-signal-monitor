@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "ir.netsignal.monitor"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "ir.netsignal.monitor"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
     }
