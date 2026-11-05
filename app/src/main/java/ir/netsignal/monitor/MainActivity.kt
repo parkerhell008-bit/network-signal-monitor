@@ -23,12 +23,10 @@ import android.telephony.CellInfoNr
 import android.telephony.CellInfoWcdma
 import android.telephony.CellSignalStrengthLte
 import android.telephony.CellSignalStrengthNr
-import android.telephony.GsmCellLocation
 import android.telephony.PhoneStateListener
 import android.telephony.SignalStrength
 import android.telephony.SubscriptionInfo
 import android.telephony.SubscriptionManager
-import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.view.View
 import android.widget.LinearLayout
@@ -96,7 +94,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private lateinit var cellAdapter: CellAdapter
 
-    private var signalCallback: TelephonyCallback? = null
     private var phoneListener: PhoneStateListener? = null
     private var cellPollJob: Job? = null
     private var distanceJob: Job? = null
@@ -439,8 +436,7 @@ class MainActivity : AppCompatActivity() {
         TelephonyManager.NETWORK_TYPE_HSPA -> "3G – HSPA" to "3G"
         TelephonyManager.NETWORK_TYPE_HSPAP -> "3G+ – HSPA+" to "3G"
         TelephonyManager.NETWORK_TYPE_TD_SCDMA -> "3G – TD-SCDMA" to "3G"
-        TelephonyManager.NETWORK_TYPE_LTE -> "4G – LTE" to "4G"
-        TelephonyManager.NETWORK_TYPE_LTE_CA -> "4G+ – LTE-A (CA)" to "4G"
+        TelephonyManager.NETWORK_TYPE_LTE -> "4G – LTE / LTE-A" to "4G"
         TelephonyManager.NETWORK_TYPE_NR -> "5G – NR" to "5G"
         TelephonyManager.NETWORK_TYPE_IWLAN -> "IWLAN" to "WLAN"
         TelephonyManager.NETWORK_TYPE_UNKNOWN -> "نامشخص" to "—"
@@ -463,50 +459,35 @@ class MainActivity : AppCompatActivity() {
         // جلوگیری از ثبت تکراری کال‌بک (نشت حافظه) در جریان onResume مجدد
         unregisterSignalListener()
 
-        // توجه: طبق مستندات رسمی اندروید، registerTelephonyCallback/TelephonyCallback
-        // از API 31 (Android 12 / S) اضافه شده است؛ بنابراین بازهٔ API 26 تا 30
-        // با PhoneStateListener (منسوخ‌شده اما هنوز پشتیبانی‌شده) پوشش داده می‌شود.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val callback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthListener {
-                override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
-                    onSignalUpdated(signalStrength)
-                }
+        // توجه: در SDKهای اخیر، TelephonyCallback.SignalStrengthListener از سطح API عمومی
+        // حذف شده است؛ بنابراین در همهٔ نسخه‌ها از PhoneStateListener (منسوخ‌شده اما
+        // همچنان موجود در SDK و کارا روی دستگاه‌ها) استفاده می‌شود.
+        @Suppress("DEPRECATION")
+        val listener = object : PhoneStateListener() {
+            override fun onSignalStrengthsChanged(signalStrength: SignalStrength?) {
+                signalStrength?.let { onSignalUpdated(it) }
             }
-            signalCallback = callback
-            telephonyManager.registerTelephonyCallback(
-                ContextCompat.getMainExecutor(this),
-                callback
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            val listener = object : PhoneStateListener() {
-                override fun onSignalStrengthsChanged(signalStrength: SignalStrength?) {
-                    signalStrength?.let { onSignalUpdated(it) }
-                }
-            }
-            phoneListener = listener
-            @Suppress("DEPRECATION")
-            telephonyManager.listen(listener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS)
         }
+        phoneListener = listener
+        @Suppress("DEPRECATION")
+        telephonyManager.listen(listener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS)
     }
 
     private fun unregisterSignalListener() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            signalCallback?.let { telephonyManager.unregisterTelephonyCallback(it) }
-        } else {
-            phoneListener?.let {
-                @Suppress("DEPRECATION")
-                telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE)
-            }
+        phoneListener?.let {
+            @Suppress("DEPRECATION")
+            telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE)
         }
-        signalCallback = null
         phoneListener = null
     }
 
     private fun onSignalUpdated(ss: SignalStrength) {
-        // SignalStrength.getDbm() از API 29 در دسترس است؛ در API 26-28 از محاسبهٔ قدیمی GSM استفاده می‌کنیم
+        // در SDKهای اخیر SignalStrength.getDbm()/getAsuLevel() از سطح API عمومی حذف شده‌اند؛
+        // dBm و ASU از cellSignalStrengths (API 29+) استخراج می‌شوند و در API 26-28 از فرمول GSM قدیمی.
         val dbmRaw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ss.dbm
+            ss.cellSignalStrengths.firstNotNullOfOrNull { css ->
+                css.dbm.takeIf { it != Int.MAX_VALUE && it != 0 }
+            } ?: Int.MAX_VALUE
         } else {
             @Suppress("DEPRECATION")
             legacyGsmDbm(ss)
@@ -520,7 +501,9 @@ class MainActivity : AppCompatActivity() {
         tvDbm.text = formatDbmOrNull(dbm)
         tvLevel.text = levelText(ss.level)
 
-        val asu = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ss.asuLevel else -1
+        val asu = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ss.cellSignalStrengths.firstNotNullOfOrNull { it.asuLevel.takeIf { v -> v in 0..999 } }
+        } else -1
         tvAsu.text = if (asu in 0..999) asu.toPersianDigits() else "—"
 
         var rsrp: Int? = null
@@ -613,7 +596,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (rows.isEmpty()) {
-            appendFallbackCell(rows)
+            // جایگزین GsmCellLocation (که از SDK حذف شده): از آخرین قدرت سیگنالِ شنیده‌شده
+            // یک ردیف عمومی می‌سازیم تا لیست هرگز خالی نماند؛ شناسهٔ دقیق دکل نیازمند
+            // getAllCellInfo کارا است که برخی سازندگان فقط با GPS روشن آن را می‌دهند.
+            lastDbm?.let {
+                rows.add(
+                    CellRow(
+                        rat = networkTypeInfo(currentNetworkType(telephonyManager)).first,
+                        generation = "",
+                        pciOrPsc = "—",
+                        cidOrNci = "—",
+                        tacOrLac = "—",
+                        earfcnOrArfcn = "—",
+                        dbm = it,
+                        registered = true
+                    )
+                )
+            }
         }
 
         // فاصله محاسبه‌شده (در صورت وجود) به ردیف سروینگ اعمال می‌شود
@@ -698,15 +697,15 @@ class MainActivity : AppCompatActivity() {
             else -> {
                 // CellInfoNr فقط از API 29 موجود است؛ چک نسخه قبل از instanceof
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is CellInfoNr) {
-                    val id = info.cellIdentity
                     val sig = info.cellSignalStrength
+                    // شناسه‌های دکل NR (pci/nci/tac/nrarfcn) در SDKهای اخیر حذف شده‌اند — فقط قدرت سیگنال در دسترس است
                     CellRow(
                         rat = "NR",
                         generation = "5G",
-                        pciOrPsc = fmtId(id.pci),
-                        cidOrNci = fmtId(id.nci),
-                        tacOrLac = fmtId(id.tac),
-                        earfcnOrArfcn = "NR-ARFCN " + fmtId(id.nrarfcn),
+                        pciOrPsc = "—",
+                        cidOrNci = "—",
+                        tacOrLac = "—",
+                        earfcnOrArfcn = "—",
                         dbm = validSignal(sig.dbm),
                         registered = info.isRegistered
                     )
@@ -795,41 +794,6 @@ class MainActivity : AppCompatActivity() {
             op.substring(0, 3) to op.substring(3)
         } else {
             mccFromId to mncFromId
-        }
-    }
-
-    /** جایگزین: وقتی getAllCellInfo خالی است از GsmCellLocation استفاده می‌شود */
-    private fun appendFallbackCell(rows: MutableList<CellRow>) {
-        try {
-            @Suppress("DEPRECATION")
-            val loc = telephonyManager.cellLocation as? GsmCellLocation ?: return
-            val cid = loc.cid
-            val lac = loc.lac
-            val psc = loc.psc
-            rows.add(
-                CellRow(
-                    rat = "GSM/UMTS",
-                    generation = "2G/3G",
-                    pciOrPsc = if (psc != -1) fmtId(psc) else "—",
-                    cidOrNci = fmtId(cid),
-                    tacOrLac = fmtId(lac),
-                    earfcnOrArfcn = "—",
-                    dbm = lastDbm,
-                    registered = true
-                )
-            )
-            if (numericServing == null) {
-                val (mcc, mnc) = idStrings(null, null)
-                numericServing = NumericServing(
-                    cid = cid.takeIf { it != -1 },
-                    lac = lac.takeIf { it != -1 },
-                    mcc = mcc,
-                    mnc = mnc,
-                    radio = "gsm"
-                )
-            }
-        } catch (e: SecurityException) {
-            // مجوز موقعیت در دسترس نیست
         }
     }
 
