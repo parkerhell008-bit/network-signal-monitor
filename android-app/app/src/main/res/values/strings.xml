@@ -67,7 +67,7 @@
     <!-- ─── کارت سیم‌کارت‌ها ─── -->
     <string name="card_sim_title">اطلاعات سیم‌کارت‌ها (Dual SIM)</string>
     <string name="sim_count_fmt">تعداد سیم‌کارت‌های فعال: %1$d</string>
-    <string name="sim_row_fmt">سیم‌کارت %1$d (اسلات %2$d) — اپراتور: %3$s — شبکه: %4$s</string>
+    <string name="sim_row_fmt">سیم‌کارت %1$d (اسلات %2$s) — اپراتور: %3$s — شبکه: %4$s</string>
     <string name="sim_none">هیچ سیم‌کارتی فعال نیست.</string>
     <string name="sim_no_permission">نمایش اطلاعات سیم‌کارت‌ها نیازمند مجوز «وضعیت تلفن» است.</string>
 

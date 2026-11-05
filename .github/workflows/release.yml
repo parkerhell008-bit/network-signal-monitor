@@ -1,0 +1,61 @@
+name: Release APK
+
+# انتشار خودکار نسخهٔ نهایی در بخش Releases مخزن گیت‌هاب
+# کافی است یک تگ به شکل v1.2.0 پوش شود؛ فایل‌های خروجی به‌صورت خودکار
+# به همان Release پیوست می‌شوند.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android platform 34
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          yes | "$SDKM" --install "platforms;android-34" > /dev/null
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x android-app/gradlew
+
+      - name: Build installable APK
+        working-directory: android-app
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK with version
+        run: |
+          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' android-app/app/build.gradle.kts)
+          echo "Detected version: $VERSION"
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk \
+             "NetworkSignalMonitor-v${VERSION}.apk"
+          zip -q -r "NetworkSignalMonitor-v${VERSION}-source.zip" android-app \
+             -x 'android-app/.gradle/*' 'android-app/app/build/*' 'android-app/build/*' 'android-app/local.properties'
+          ls -la
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            NetworkSignalMonitor-v*.apk
+            NetworkSignalMonitor-v*-source.zip
+          generate_release_notes: true

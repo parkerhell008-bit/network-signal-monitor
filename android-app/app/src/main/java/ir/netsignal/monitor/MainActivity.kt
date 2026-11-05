@@ -50,8 +50,10 @@ import com.google.android.material.chip.Chip
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.isActive
@@ -63,8 +65,6 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.math.atan2
@@ -104,6 +104,15 @@ class MainActivity : AppCompatActivity() {
     private var cellPollJob: Job? = null
     private var distanceJob: Job? = null
     private var speedTestJob: Job? = null
+
+    /** فقط یک‌بار به‌طور خودکار دیالوگ مجوز را باز می‌کنیم تا پس از رد شدن،
+     *  دیالوگ در حلقهٔ بی‌پایان onResume دوباره باز نشود؛
+     *  کاربر می‌تواند با لمس کادر راهنما مجدداً درخواست را باز کند. */
+    private var autoPromptedOnce = false
+
+    /** اسکوپ مستقل از چرخهٔ حیات برای کارهای کوتاه (ثبت تاریخچه) که نباید
+     *  با بسته‌شدن صفحه نیمه‌کاره بمانند. */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var lastDbm: Int? = null
     private var lastDistanceText: String? = null
@@ -205,8 +214,13 @@ class MainActivity : AppCompatActivity() {
         val missing = missingPermissions()
         if (missing.isEmpty()) {
             startAll()
-        } else {
+        } else if (!autoPromptedOnce) {
+            // بار اول: دیالوگ مجوز به‌طور خودکار باز می‌شود
+            autoPromptedOnce = true
             permissionLauncher.launch(missing.toTypedArray())
+        } else {
+            // بارهای بعدی: به‌جای دیالوگ تکراری، کادر راهنمای قابل‌لمس نمایش داده می‌شود
+            showPermissionGate(getString(R.string.permission_gate))
         }
     }
 
@@ -325,13 +339,25 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             locationGranted -> {
-                tvPermissionGate.visibility = View.VISIBLE
-                tvPermissionGate.text = getString(R.string.sim_no_permission)
+                showPermissionGate(getString(R.string.sim_no_permission))
             }
             else -> {
-                tvPermissionGate.visibility = View.VISIBLE
-                tvPermissionGate.text = getString(R.string.permission_gate)
+                showPermissionGate(getString(R.string.permission_gate))
                 toast(getString(R.string.permission_gate))
+            }
+        }
+    }
+
+    /** نمایش کادر راهنمای مجوزها؛ لمس آن دیالوگ مجوز را دوباره باز می‌کند */
+    private fun showPermissionGate(message: String) {
+        tvPermissionGate.visibility = View.VISIBLE
+        tvPermissionGate.text = message
+        tvPermissionGate.setOnClickListener {
+            val missing = missingPermissions()
+            if (missing.isEmpty()) {
+                startAll()
+            } else {
+                permissionLauncher.launch(missing.toTypedArray())
             }
         }
     }
@@ -340,6 +366,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startAll() {
         tvPermissionGate.visibility = View.GONE
+        tvPermissionGate.setOnClickListener(null)
         refreshTelephonyInfo()
         refreshDualSim()
         registerSignalListener()
@@ -352,11 +379,21 @@ class MainActivity : AppCompatActivity() {
         unregisterSignalListener()
         cellPollJob?.cancel()
         cellPollJob = null
-        // توقف کارهای در جریان (تست سرعت / GPS+OpenCelliD) هنگام خروج از صفحه
-        distanceJob?.cancel()
-        distanceJob = null
-        speedTestJob?.cancel()
+        // توقف کارهای در جریان (تست سرعت / GPS+OpenCelliD) هنگام خروج از صفحه؛
+        // اگر تستی در جریان بود، رابط کاربری هم به حالت آماده بازگردانده می‌شود
+        // تا دکمه «لغو تست» و نوار پیشرفت پس از بازگشت به صفحه گیر نکنند.
+        if (speedTestJob?.isActive == true) {
+            speedTestJob?.cancel()
+            resetSpeedUi()
+            tvSpeedStatus.text = getString(R.string.speed_status_idle)
+        }
         speedTestJob = null
+        if (distanceJob?.isActive == true) {
+            distanceJob?.cancel()
+            tvTowerDistance.text = getString(R.string.distance_na)
+            tvTowerBearing.text = "—"
+        }
+        distanceJob = null
     }
 
     // ───────────────────────── اطلاعات تلفن / سیم‌کارت ─────────────────────────
@@ -525,10 +562,11 @@ class MainActivity : AppCompatActivity() {
     private fun onSignalUpdated(ss: SignalStrength) {
         // در SDKهای اخیر SignalStrength.getDbm()/getAsuLevel() از سطح API عمومی حذف شده‌اند؛
         // dBm و ASU از cellSignalStrengths (API 29+) استخراج می‌شوند و در API 26-28 از فرمول GSM قدیمی.
+        // برخی سازندگان cellSignalStrengths خالی برمی‌گردانند؛ در این حالت نیز از فرمول قدیمی استفاده می‌کنیم.
         val dbmRaw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ss.cellSignalStrengths.firstNotNullOfOrNull { css ->
                 css.dbm.takeIf { it != Int.MAX_VALUE && it != 0 }
-            } ?: Int.MAX_VALUE
+            } ?: legacyGsmDbm(ss)
         } else {
             @Suppress("DEPRECATION")
             legacyGsmDbm(ss)
@@ -955,11 +993,12 @@ class MainActivity : AppCompatActivity() {
             }
             val carrier = sub.carrierName?.toString().orEmpty()
                 .ifBlank { getString(R.string.unknown_operator) }
-            // clamp: simSlotIndex طبق مستندات ممکن است -1 باشد
+            // clamp: simSlotIndex طبق مستندات ممکن است -1 باشد (سابسکریپشن غیرفعال/ریموت)
+            val slotText = if (sub.simSlotIndex >= 0) sub.simSlotIndex.toString() else "—"
             val slotNumber = (sub.simSlotIndex.coerceAtLeast(0)) + 1
             llSimList.addView(
                 makeInfoRow(
-                    getString(R.string.sim_row_fmt, slotNumber, sub.simSlotIndex, carrier, typeLabel)
+                    getString(R.string.sim_row_fmt, slotNumber, slotText, carrier, typeLabel)
                         .toPersianDigits()
                 )
             )
@@ -1236,8 +1275,9 @@ class MainActivity : AppCompatActivity() {
                     tvUpload.text = formatMbps(result.uploadMbps)
                     tvSpeedStatus.text = getString(R.string.speed_status_done)
                     finishSpeedUi()
-                    // ذخیرهٔ خودکار نتیجه در تاریخچهٔ محلی و تازه‌سازی نمودار
-                    lifecycleScope.launch(Dispatchers.IO) {
+                    // ذخیرهٔ خودکار نتیجه در تاریخچهٔ محلی؛ روی اسکوپ مستقل از اکتیویتی
+                    // اجرا می‌شود تا اگر کاربر بلافاصله برنامه را بست، نتیجه از دست نرود.
+                    appScope.launch {
                         historyDb.insert(result)
                         withContext(Dispatchers.Main) { refreshHistory() }
                     }
@@ -1290,9 +1330,8 @@ class MainActivity : AppCompatActivity() {
             }
             tvHistoryEmpty.visibility = View.GONE
             llHistoryList.removeAllViews()
-            val dateFormat = SimpleDateFormat("MM/dd HH:mm", Locale.US)
             for (entry in entries.take(8)) {
-                val date = dateFormat.format(Date(entry.timestampMs)).toPersianDigits()
+                val date = formatHistoryTimestamp(entry.timestampMs)
                 llHistoryList.addView(
                     makeInfoRow(
                         date +
@@ -1312,6 +1351,32 @@ class MainActivity : AppCompatActivity() {
                 refreshHistory()
                 toast(getString(R.string.history_cleared))
             }
+        }
+    }
+
+    /**
+     * تاریخ نتایج: از اندروید ۷ به بالا با تقویم هجری شمسی (جلالی) نمایش داده می‌شود
+     * تا برای کاربر فارسی‌زبان خوانا باشد؛ در نسخه‌های قدیمی‌تر از میلادی استفاده می‌کنیم.
+     * خروجی به شکل «۱۴۰۳/۰۵/۱۲ ۱۴:۳۰» است.
+     */
+    private fun formatHistoryTimestamp(ms: Long): String {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val cal = android.icu.util.PersianCalendar()
+            cal.timeInMillis = ms
+            String.format(
+                Locale.US,
+                "%04d/%02d/%02d %02d:%02d",
+                cal.get(android.icu.util.PersianCalendar.YEAR),
+                cal.get(android.icu.util.PersianCalendar.MONTH) + 1,
+                cal.get(android.icu.util.PersianCalendar.DAY_OF_MONTH),
+                cal.get(android.icu.util.PersianCalendar.HOUR_OF_DAY),
+                cal.get(android.icu.util.PersianCalendar.MINUTE)
+            ).toPersianDigits()
+        } else {
+            @Suppress("DEPRECATION")
+            java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                .format(java.util.Date(ms))
+                .toPersianDigits()
         }
     }
 

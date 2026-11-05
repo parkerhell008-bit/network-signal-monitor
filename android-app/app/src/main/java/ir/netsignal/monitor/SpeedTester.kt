@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 import kotlin.math.abs
@@ -86,6 +87,7 @@ object SpeedTester {
 
             // ─────────── فاز ۲: دانلود (۴ جریان موازی) ───────────
             val downloaded = AtomicLong(0L)
+            val downloadFailures = AtomicInteger(0)
             val expectedDownload = DOWNLOAD_BYTES_PER_STREAM * STREAM_COUNT
             val downloadStart = System.nanoTime()
             val downloadPoller = launch(Dispatchers.Main) {
@@ -100,13 +102,21 @@ object SpeedTester {
             val downloadElapsedS = (System.nanoTime() - downloadStart) / 1e9
             val downloadBytes = downloaded.get()
             if (downloadBytes <= 0L) {
-                throw IOException("هیچ داده‌ای دانلود نشد (احتمالاً اتصال مسدود است)")
+                throw IOException(
+                    "هیچ داده‌ای دانلود نشد" +
+                        if (downloadFailures.get() > 0) {
+                            " (خطای " + downloadFailures.get().toString().toPersianDigits() + " جریان از ۴ جریان موازی)"
+                        } else {
+                            " (احتمالاً اتصال مسدود است)"
+                        }
+                )
             }
             val downloadMbps = downloadBytes * 8.0 / 1e6 / downloadElapsedS
             withContext(Dispatchers.Main) { listener.onDownloadProgress(100, downloadMbps) }
 
             // ─────────── فاز ۳: آپلود (۴ جریان موازی) ───────────
             val uploaded = AtomicLong(0L)
+            val uploadFailures = AtomicInteger(0)
             val expectedUpload = UPLOAD_BYTES_PER_STREAM * STREAM_COUNT
             val uploadStart = System.nanoTime()
             val uploadPoller = launch(Dispatchers.Main) {
@@ -121,7 +131,14 @@ object SpeedTester {
             val uploadElapsedS = (System.nanoTime() - uploadStart) / 1e9
             val uploadBytes = uploaded.get()
             if (uploadBytes <= 0L) {
-                throw IOException("هیچ داده‌ای ارسال نشد")
+                throw IOException(
+                    "هیچ داده‌ای ارسال نشد" +
+                        if (uploadFailures.get() > 0) {
+                            " (خطای " + uploadFailures.get().toString().toPersianDigits() + " جریان از ۴ جریان موازی)"
+                        } else {
+                            ""
+                        }
+                )
             }
             val uploadMbps = uploadBytes * 8.0 / 1e6 / uploadElapsedS
             withContext(Dispatchers.Main) { listener.onUploadProgress(100, uploadMbps) }
@@ -139,10 +156,22 @@ object SpeedTester {
         }
     }
 
-    /** اجرای همزمان ۴ جریان شبکه روی Dispatchers.IO */
+    /**
+     * اجرای همزمان ۴ جریان شبکه روی Dispatchers.IO.
+     * خطای تک‌جریان کل تست را نابود نمی‌کند (شبکه‌های موبایل ناپایدارند)؛
+     * اگر همهٔ جریان‌ها شکست بخورند، گاردهای bytes<=0 در فاز بعدی با پیام دقیق خطا می‌دهند.
+     */
     private suspend fun runParallelStreams(stream: suspend () -> Unit) = coroutineScope {
         repeat(STREAM_COUNT) {
-            launch(Dispatchers.IO) { stream() }
+            launch(Dispatchers.IO) {
+                try {
+                    stream()
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (e: Exception) {
+                    // جریان ناموفق: بایت‌های شمرده‌شده تا همین لحظه معتبر می‌مانند
+                }
+            }
         }
     }
 
