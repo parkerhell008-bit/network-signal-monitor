@@ -1515,8 +1515,8 @@ class MainActivity : AppCompatActivity() {
                 val tx = TrafficStats.getTotalTxBytes()
                 val t = SystemClock.elapsedRealtime()
                 val dtS = (t - lastT) / 1000.0
-                val supported = rx != TrafficStats.UNSUPPORTED &&
-                    lastRx != TrafficStats.UNSUPPORTED
+                val supported = rx != TrafficStats.UNSUPPORTED.toLong() &&
+                    lastRx != TrafficStats.UNSUPPORTED.toLong()
                 if (supported && dtS > 0) {
                     val downKbps = (rx - lastRx).coerceAtLeast(0L) * 8.0 / 1e3 / dtS
                     val upKbps = (tx - lastTx).coerceAtLeast(0L) * 8.0 / 1e3 / dtS

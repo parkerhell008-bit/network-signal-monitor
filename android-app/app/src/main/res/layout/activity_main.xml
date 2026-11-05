@@ -164,6 +164,77 @@
                         android:layout_height="110dp"
                         android:layout_marginTop="10dp" />
 
+                    <!-- جزئیات قدرت سیگنال -->
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_dbm" />
+                        <TextView
+                            android:id="@+id/tvDbm"
+                            style="@style/RowValue"
+                            tools:text="-۸۷ dBm" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_asu" />
+                        <TextView
+                            android:id="@+id/tvAsu"
+                            style="@style/RowValue"
+                            tools:text="۵۳" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_level" />
+                        <TextView
+                            android:id="@+id/tvLevel"
+                            style="@style/RowValue"
+                            tools:text="خوب" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_rsrp" />
+                        <TextView
+                            android:id="@+id/tvRsrp"
+                            style="@style/RowValue"
+                            tools:text="-۹۵ dBm" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_rsrq" />
+                        <TextView
+                            android:id="@+id/tvRsrq"
+                            style="@style/RowValue"
+                            tools:text="-۱۱ dB" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_snr" />
+                        <TextView
+                            android:id="@+id/tvSnr"
+                            style="@style/RowValue"
+                            tools:text="۱۸ dB" />
+                    </LinearLayout>
+
+                    <LinearLayout style="@style/InfoRow">
+                        <TextView
+                            style="@style/RowLabel"
+                            android:text="@string/label_rssi" />
+                        <TextView
+                            android:id="@+id/tvRssi"
+                            style="@style/RowValue"
+                            tools:text="-۶۷ dBm" />
+                    </LinearLayout>
+
                     <LinearLayout style="@style/InfoRow">
                         <TextView
                             style="@style/RowLabel"
