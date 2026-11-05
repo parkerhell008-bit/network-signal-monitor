@@ -501,10 +501,10 @@ class MainActivity : AppCompatActivity() {
         tvDbm.text = formatDbmOrNull(dbm)
         tvLevel.text = levelText(ss.level)
 
-        val asu = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ss.cellSignalStrengths.firstNotNullOfOrNull { it.asuLevel.takeIf { v -> v in 0..999 } }
-        } else -1
-        tvAsu.text = if (asu in 0..999) asu.toPersianDigits() else "—"
+        val asu: Int? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ss.cellSignalStrengths.firstNotNullOfOrNull { it.asuLevel?.takeIf { v -> v in 0..999 } }
+        } else null
+        tvAsu.text = if (asu != null && asu in 0..999) asu.toPersianDigits() else "—"
 
         var rsrp: Int? = null
         var rsrq: Int? = null
