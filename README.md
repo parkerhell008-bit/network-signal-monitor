@@ -44,7 +44,7 @@
 
 ```bash
 ./gradlew assembleDebug
-# خروجی: app/build/outputs/apk/debug/app-debug.apk
+# خروجی: android-app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### روش ۲: Android Studio
@@ -57,7 +57,7 @@
 
 ```bash
 keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -keysize 2048 -validity 10000
-./gradlew assembleRelease   # پس از تنظیم signingConfigs در app/build.gradle.kts
+./gradlew assembleRelease   # پس از تنظیم signingConfigs در android-app/build.gradle.kts
 ```
 
 ---
@@ -86,7 +86,7 @@ keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -k
 ## 📁 ساختار پروژه
 
 ```
-├── app/
+├── android-app/
 │   ├── build.gradle.kts           ← applicationId: ir.netsignal.monitor | minSdk 26 | target 34
 │   └── src/main/
 │       ├── AndroidManifest.xml

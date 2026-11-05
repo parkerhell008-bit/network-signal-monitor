@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "NetworkSignalMonitor"
-include(":app")
+include(":android-app")
