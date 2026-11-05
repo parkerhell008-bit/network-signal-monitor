@@ -87,7 +87,7 @@ keytool -genkey -v -keystore my-release.keystore -alias netsignal -keyalg RSA -k
 
 ```
 ├── app/
-│   ├── build.gradle.kts           ← applicationId: ir.netsignal.monitor | minSdk 26 | target 35
+│   ├── build.gradle.kts           ← applicationId: ir.netsignal.monitor | minSdk 26 | target 34
 │   └── src/main/
 │       ├── AndroidManifest.xml
 │       ├── java/ir/netsignal/monitor/
