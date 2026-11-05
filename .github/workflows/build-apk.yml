@@ -18,6 +18,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Diagnose Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls "$ANDROID_HOME/platforms/" || true
+          for p in "$ANDROID_HOME"/platforms/android-*; do
+            echo "== $p =="
+            unzip -l "$p/android.jar" 2>/dev/null | grep -E "telephony/(GsmCellLocation|TelephonyCallback|SignalStrength|CellIdentityNr)\.class" || echo "  (telephony classes NOT found in this jar)"
+          done
+
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v3
 
