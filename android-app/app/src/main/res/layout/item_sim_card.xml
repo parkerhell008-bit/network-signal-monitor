@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    app:cardBackgroundColor="@color/background"
+    app:cardCornerRadius="14dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/stroke"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvSimBadge"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_panel"
+                android:gravity="center"
+                android:textColor="@color/emerald"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="۱" />
+
+            <TextView
+                android:id="@+id/tvSimTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="سیم‌کارت ۱ — اسلات ۰" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_sim_carrier" />
+            <TextView
+                android:id="@+id/tvSimCarrier"
+                style="@style/RowValue"
+                tools:text="همراه اول" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_sim_display" />
+            <TextView
+                android:id="@+id/tvSimDisplay"
+                style="@style/RowValue"
+                tools:text="IR-MCI" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_sim_net_type" />
+            <TextView
+                android:id="@+id/tvSimNetType"
+                style="@style/RowValue"
+                tools:text="4G – LTE" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_sim_signal" />
+            <TextView
+                android:id="@+id/tvSimSignal"
+                style="@style/RowValue"
+                tools:text="-۹۵ dBm" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_mccmnc" />
+            <TextView
+                android:id="@+id/tvSimMccMnc"
+                style="@style/RowValue"
+                tools:text="432 – 11" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_sim_roaming" />
+            <TextView
+                android:id="@+id/tvSimRoaming"
+                style="@style/RowValue"
+                tools:text="غیرفعال" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/InfoRow">
+            <TextView
+                style="@style/RowLabel"
+                android:text="@string/label_sim_subid" />
+            <TextView
+                android:id="@+id/tvSimSubId"
+                style="@style/RowValue"
+                tools:text="۵" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnInspectSim"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/btn_inspect_sim"
+            android:textColor="@color/emerald"
+            android:textSize="12.5sp"
+            app:strokeColor="@color/emerald" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

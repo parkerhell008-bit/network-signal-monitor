@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="28dp">
+
+        <!-- ═════ تست پینگ ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_speed" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_ping_title" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/ping_target_label"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12.5sp" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipPingTargets"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    app:chipSpacingHorizontal="6dp"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipPingGoogle"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/chip_ping_google" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipPingCloudflare"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/chip_ping_cloudflare" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipPingShecan"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/chip_ping_shecan" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipPingBegzar"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/chip_ping_begzar" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipPingLevel3"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checkable="true"
+                        android:text="@string/chip_ping_level3" />
+                </com.google.android.material.chip.ChipGroup>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRunPing"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/btn_ping_run"
+                    android:textColor="@color/chip_text"
+                    app:backgroundTint="@color/emerald" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/ToolResultPanel">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/ping_min" />
+                        <TextView
+                            android:id="@+id/tvPingMin"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/ToolResultPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/ping_avg" />
+                        <TextView
+                            android:id="@+id/tvPingAvg"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/ToolResultPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/ping_max" />
+                        <TextView
+                            android:id="@+id/tvPingMax"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/ToolResultPanel">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/ping_jitter" />
+                        <TextView
+                            android:id="@+id/tvPingJitter"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/ToolResultPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/ping_loss" />
+                        <TextView
+                            android:id="@+id/tvPingLoss"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/ToolResultPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/label_ping" />
+                        <TextView
+                            android:id="@+id/tvPingPackets"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvPingMethod"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
+
+                <TextView
+                    android:id="@+id/tvPingStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/ping_status_idle"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/ping_note"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ تست DNS ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_swap" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_dns_title" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRunDns"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/btn_dns_run"
+                    android:textColor="@color/chip_text"
+                    app:backgroundTint="@color/emerald" />
+
+                <LinearLayout
+                    android:id="@+id/llDnsRows"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/tvDnsStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/dns_status_idle"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/dns_note"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ خروجی گزارش‌ها ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_report" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_reports_title" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnExportPdf"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/btn_export_pdf"
+                    android:textColor="@color/chip_text"
+                    app:backgroundTint="@color/emerald" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnExportCsv"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/btn_export_csv"
+                    android:textColor="@color/emerald"
+                    app:strokeColor="@color/emerald" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnExportSpeedCsv"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/btn_export_speed_csv"
+                    android:textColor="@color/emerald"
+                    app:strokeColor="@color/emerald" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/reports_note"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- نسخهٔ تاریک تم: فقط موارد متفاوت (استایل‌ها بین کوالیفایرها merge نمی‌شوند) -->
+    <style name="Theme.NetSignal" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/emerald</item>
+        <item name="colorOnPrimary">@color/chip_text</item>
+        <item name="colorPrimaryContainer">@color/surface</item>
+        <item name="colorOnPrimaryContainer">@color/text_primary</item>
+        <item name="colorSecondary">@color/emerald</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="colorOutline">@color/stroke</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+</resources>

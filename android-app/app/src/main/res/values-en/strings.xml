@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ─── General ─── -->
+    <string name="app_name">Network Signal Monitor</string>
+    <string name="app_subtitle">Real-time network monitoring, full connection details, towers and speed test</string>
+    <string name="permission_gate">To display SIM, signal and tower information, grant the Phone and Location permissions. Tap this box to show the request again.</string>
+    <string name="no_data">—</string>
+    <string name="unknown_operator">Unknown</string>
+    <string name="roaming_on">Active (international roaming)</string>
+    <string name="roaming_off">Inactive (home network)</string>
+    <string name="gauge_unit_dbm">dBm — decibel-milliwatt</string>
+    <string name="refresh_desc">Refresh all information</string>
+    <string name="unknown">Unknown</string>
+    <string name="unknown_type_fmt">Unknown type (%1$d)</string>
+
+    <!-- ─── Tabs ─── -->
+    <string name="tab_dashboard">Dashboard</string>
+    <string name="tab_network">Network</string>
+    <string name="tab_sim">SIM</string>
+    <string name="tab_tools">Tools</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- ─── Dashboard ─── -->
+    <string name="card_status_title">Signal and network status</string>
+    <string name="label_operator">Network operator</string>
+    <string name="label_sim_operator">SIM operator</string>
+    <string name="label_sim_state">SIM state</string>
+    <string name="label_country">Network country</string>
+    <string name="label_roaming">Roaming status</string>
+    <string name="label_data_state">Data state</string>
+    <string name="label_data_activity">Data activity</string>
+    <string name="label_modems">Active modem count</string>
+    <string name="card_signal_title">Signal strength details</string>
+    <string name="label_dbm">Signal strength (dBm)</string>
+    <string name="label_asu">ASU</string>
+    <string name="label_level">Signal level</string>
+    <string name="label_rsrp">RSRP</string>
+    <string name="label_rsrq">RSRQ</string>
+    <string name="label_snr">SNR / SINR</string>
+    <string name="label_rssi">RSSI</string>
+    <string name="score_title">Network quality score</string>
+    <string name="score_fmt">%1$s out of 100</string>
+    <string name="score_excellent">Excellent</string>
+    <string name="score_good">Good</string>
+    <string name="score_moderate">Moderate</string>
+    <string name="score_weak">Weak</string>
+    <string name="score_very_weak">Very weak</string>
+    <string name="sig_stats_fmt">Avg: %1$s • Min: %2$s • Max: %3$s</string>
+    <string name="chart_live_hint">Live signal chart (last 60 samples)</string>
+
+    <!-- ─── Status texts (code) ─── -->
+    <string name="sim_state_absent">No SIM card</string>
+    <string name="sim_state_pin">PIN locked</string>
+    <string name="sim_state_puk">PUK locked</string>
+    <string name="sim_state_network_locked">Network locked</string>
+    <string name="sim_state_ready">Ready</string>
+    <string name="sim_state_not_ready">Not ready</string>
+    <string name="sim_state_perm_disabled">Permanently disabled</string>
+    <string name="sim_state_card_io">SIM card hardware error</string>
+    <string name="sim_state_restricted">Restricted</string>
+    <string name="data_state_connected">Connected</string>
+    <string name="data_state_connecting">Connecting</string>
+    <string name="data_state_disconnected">Disconnected</string>
+    <string name="data_state_suspended">Suspended</string>
+    <string name="data_activity_none">No traffic</string>
+    <string name="data_activity_in">Receiving data</string>
+    <string name="data_activity_out">Sending data</string>
+    <string name="data_activity_inout">Sending and receiving</string>
+    <string name="data_activity_dormant">Dormant</string>
+    <string name="level_excellent">Excellent</string>
+    <string name="level_good">Good</string>
+    <string name="level_moderate">Moderate</string>
+    <string name="level_weak">Weak</string>
+    <string name="level_very_weak">Very weak</string>
+    <string name="unit_ms_fmt">%1$s milliseconds</string>
+    <string name="unit_mbps_fmt">%1$s megabits per second</string>
+    <string name="unit_meters">meters</string>
+    <string name="unit_kilometers">kilometers</string>
+    <string name="unit_degrees">degrees</string>
+    <string name="bearing_n">North</string>
+    <string name="bearing_ne">Northeast</string>
+    <string name="bearing_e">East</string>
+    <string name="bearing_se">Southeast</string>
+    <string name="bearing_s">South</string>
+    <string name="bearing_sw">Southwest</string>
+    <string name="bearing_w">West</string>
+    <string name="bearing_nw">Northwest</string>
+    <string name="bearing_fmt">%1$s (%2$s %3$s)</string>
+
+    <!-- ─── Network page: serving tower ─── -->
+    <string name="card_tower_title">Full connection details — Connected tower</string>
+    <string name="label_rat">Network generation and type</string>
+    <string name="label_pci">PCI / PSC</string>
+    <string name="label_cid">CID / NCI</string>
+    <string name="label_enb">Station ID (eNB ID)</string>
+    <string name="label_tac">TAC / LAC</string>
+    <string name="label_earfcn">EARFCN / ARFCN</string>
+    <string name="label_band">Frequency band</string>
+    <string name="label_mccmnc">MCC / MNC</string>
+    <string name="label_bandwidth">Bandwidth</string>
+    <string name="label_ta">Timing advance (TA)</string>
+    <string name="label_ta_distance">Distance from TA</string>
+    <string name="label_frequency">Estimated frequency</string>
+    <string name="band_fmt">Band %1$s</string>
+    <string name="band_combined_fmt">Band %1$s / %2$s</string>
+    <string name="freq_fmt">Approx. %1$s MHz</string>
+    <string name="unit_mhz">MHz</string>
+    <string name="ta_value_fmt">%1$s (level %2$d)</string>
+    <string name="ta_dist_fmt">Approx. %1$s</string>
+    <string name="ta_hint">One TA unit in LTE ≈ 78 meters of radio distance.</string>
+    <string name="neighbors_title">Nearby cells</string>
+    <string name="no_cells">No cell information received yet…</string>
+    <string name="tag_serving">Serving</string>
+    <string name="tag_neighbor">Neighbor</string>
+    <string name="cell_band_fmt">Band %1$s</string>
+
+    <!-- ─── Distance to tower ─── -->
+    <string name="card_distance_title">Distance to tower (fully automatic)</string>
+    <string name="btn_locate">Recalculate distance</string>
+    <string name="label_distance">Estimated distance to tower</string>
+    <string name="label_source">Tower location source</string>
+    <string name="label_bearing">Tower direction</string>
+    <string name="label_gps">Your coordinates</string>
+    <string name="src_opencellid">Precise — OpenCelliD (your key)</string>
+    <string name="src_mylnikov">Precise — Mylnikov (automatic, no key)</string>
+    <string name="src_estimate">Rough estimate from signal strength (no database)</string>
+    <string name="distance_acc_fmt">Estimated accuracy: ±%1$s</string>
+    <string name="msg_getting_gps">Getting GPS location…</string>
+    <string name="msg_querying_db">Finding tower location…</string>
+    <string name="err_gps_failed">Failed to get GPS location.</string>
+    <string name="err_no_cell">Numeric details of the connected tower are not available yet; try again in a moment.</string>
+    <string name="err_generic">Error: %1$s</string>
+    <string name="distance_na">Distance is calculated automatically when the tower changes or when you tap the button.</string>
+
+    <!-- ─── Map and compass ─── -->
+    <string name="card_map_title">Tower location map</string>
+    <string name="map_hint">Once the tower location is found, a green marker appears on the map.</string>
+    <string name="map_user">Your location</string>
+    <string name="map_tower">Connected tower</string>
+    <string name="card_compass_title">Compass — Tower direction</string>
+    <string name="compass_hint">Hold the phone flat; the green arrow points to the tower relative to you, and the gray needle shows the phone orientation.</string>
+
+    <!-- ─── Tower handover ─── -->
+    <string name="card_handover_title">Tower handover report (Handover)</string>
+    <string name="handover_empty">No tower handover has been recorded yet; handovers will be logged here.</string>
+    <string name="handover_fmt">%1$s — %2$s ← %3$s</string>
+    <string name="btn_clear_handover">Clear report</string>
+    <string name="handover_cleared">Handover report cleared.</string>
+
+    <!-- ─── SIM cards ─── -->
+    <string name="card_sim_title">SIM information (Dual SIM)</string>
+    <string name="sim_count_fmt">Active SIM count: %1$d</string>
+    <string name="sim_card_title_fmt">SIM %1$d — Slot %2$s</string>
+    <string name="sim_none">No SIM card is active.</string>
+    <string name="sim_no_permission">Showing SIM information requires the Phone State permission.</string>
+    <string name="sim_requires_api22">Showing SIM cards requires Android 5.1 or higher.</string>
+    <string name="sim_page_note">Some phones report full details only for the active data SIM; for the other SIM, dash values are normal. Use the button at the bottom of each card to check the tower of that SIM.</string>
+    <string name="label_sim_carrier">Operator</string>
+    <string name="label_sim_display">Display name</string>
+    <string name="label_sim_net_type">Network type</string>
+    <string name="label_sim_signal">Signal strength</string>
+    <string name="label_sim_roaming">Roaming</string>
+    <string name="label_sim_subid">Subscription ID</string>
+    <string name="btn_inspect_sim">Show tower of this SIM</string>
+    <string name="btn_inspect_default">Back to the primary SIM</string>
+    <string name="inspect_active_fmt">Showing tower details for SIM %1$d</string>
+    <string name="sim_signal_na">Not available</string>
+
+    <!-- ─── Speed test ─── -->
+    <string name="card_speed_title">Internet speed test</string>
+    <string name="btn_start_speed">Start speed test</string>
+    <string name="btn_stop_speed">Cancel test</string>
+    <string name="label_ping">Ping</string>
+    <string name="label_download">Download</string>
+    <string name="label_upload">Upload</string>
+    <string name="speed_status_idle">Ready to run the test…</string>
+    <string name="speed_status_running">Running speed test…</string>
+    <string name="speed_status_done">Speed test completed.</string>
+    <string name="speed_status_error">Speed test error</string>
+    <string name="speed_no_internet">No internet connection found; connect to a network first.</string>
+    <string name="location_needed_for_cells">Without the Location permission, Android hides nearby tower IDs. Grant the Location permission as well to see towers and distance.</string>
+    <string name="card_history_title">Speed test history</string>
+    <string name="history_auto_saved">After each completed test, the result is saved automatically on this phone.</string>
+    <string name="history_empty">No test recorded yet; run a speed test and the trend will be plotted here.</string>
+    <string name="history_count_fmt">Recorded results: %1$d</string>
+    <string name="chart_max_fmt">Max: %1$s Mbps</string>
+    <string name="chart_legend_download">Download</string>
+    <string name="chart_legend_upload">Upload</string>
+    <string name="btn_clear_history">Clear history</string>
+    <string name="history_cleared">History cleared.</string>
+    <string name="card_traffic_title">Live phone internet traffic</string>
+    <string name="label_live_down">Live download</string>
+    <string name="label_live_up">Live upload</string>
+    <string name="speed_na">—</string>
+
+    <!-- ─── Tools: Ping ─── -->
+    <string name="card_ping_title">Professional ping test</string>
+    <string name="ping_target_label">Target server</string>
+    <string name="btn_ping_run">Run ping test</string>
+    <string name="btn_ping_stop">Stop</string>
+    <string name="ping_min">Lowest</string>
+    <string name="ping_avg">Average</string>
+    <string name="ping_max">Highest</string>
+    <string name="ping_jitter">Jitter</string>
+    <string name="ping_loss">Lost packets</string>
+    <string name="loss_fmt">%1$s%%</string>
+    <string name="ping_packets_fmt">%1$s of %2$s</string>
+    <string name="ping_status_idle">Ready to test… Select a server and press the button.</string>
+    <string name="ping_status_running">Sending packets…</string>
+    <string name="ping_method_icmp">Method: System ICMP (real)</string>
+    <string name="ping_method_http">Method: HTTP (ICMP was blocked on this phone)</string>
+    <string name="ping_note">The real ping uses system ICMP packets; if the phone does not allow it, the test automatically switches to HTTP.</string>
+    <string name="err_ping_failed">Ping failed; check your internet connection or the target server.</string>
+    <string name="chip_ping_google">Google 8.8.8.8</string>
+    <string name="chip_ping_cloudflare">Cloudflare 1.1.1.1</string>
+    <string name="chip_ping_shecan">Shecan (Iranian)</string>
+    <string name="chip_ping_begzar">Begzar (Iranian)</string>
+    <string name="chip_ping_level3">Level3 4.2.2.4</string>
+
+    <!-- ─── Tools: DNS ─── -->
+    <string name="card_dns_title">DNS speed test</string>
+    <string name="btn_dns_run">Run DNS test</string>
+    <string name="dns_status_idle">Ready to test…</string>
+    <string name="dns_status_running">Checking domains…</string>
+    <string name="dns_note">Time to resolve a domain name to an IP address; the same delay applies when your first internet connection opens.</string>
+    <string name="dns_row_fmt">%1$s — %2$s</string>
+    <string name="dns_fail">Failed</string>
+
+    <!-- ─── Tools: Reports ─── -->
+    <string name="card_reports_title">Export reports</string>
+    <string name="btn_export_csv">Export signal history CSV</string>
+    <string name="btn_export_pdf">Full PDF report</string>
+    <string name="btn_export_speed_csv">Export speed test CSV</string>
+    <string name="reports_note">The generated file can be saved on the phone or shared via the share window.</string>
+    <string name="export_none">No data has been recorded for export yet.</string>
+    <string name="export_done">Report file is ready.</string>
+    <string name="export_failed">Failed to build report: %1$s</string>
+    <string name="report_building">Building report…</string>
+    <string name="share_via">Share network report</string>
+    <string name="share_header">📡 Network Report — Network Signal Monitor\n\n</string>
+
+    <!-- ─── Settings ─── -->
+    <string name="card_appearance_title">Appearance and language</string>
+    <string name="theme_label">App theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="dynamic_color_label">Dynamic color (Android 12+)</string>
+    <string name="dynamic_color_hint">App colors adapt to your wallpaper.</string>
+    <string name="dynamic_color_applied">Saved; restart the app to fully apply.</string>
+    <string name="language_label">App language</string>
+    <string name="lang_applied">App language changed.</string>
+    <string name="card_monitor_title">Background monitoring</string>
+    <string name="monitor_label">Background signal logging + persistent notification</string>
+    <string name="monitor_desc">Lightweight service: logs the signal every 5 seconds, shows it in the notification bar, alerts on sudden drops and keeps the home screen widget up to date.</string>
+    <string name="monitor_started">Background monitoring enabled.</string>
+    <string name="monitor_stopped">Background monitoring disabled.</string>
+    <string name="monitor_permission_needed">Grant the notification permission to display notifications.</string>
+    <string name="card_about_title">About the app</string>
+    <string name="about_version_fmt">Version %1$s</string>
+    <string name="about_repo">View source code on GitHub</string>
+    <string name="about_made">A professional mobile network monitoring tool — all data stays on this phone only.</string>
+    <string name="privacy_note">🔒 No data is sent to any server; your location is used only to calculate the distance to the tower.</string>
+
+    <!-- ─── Service and widget ─── -->
+    <string name="notif_channel_name">Signal monitoring</string>
+    <string name="notif_channel_desc">Real-time network status in the notification bar</string>
+    <string name="notif_title">Monitoring network</string>
+    <string name="notif_text_fmt">%1$s — Signal: %2$s</string>
+    <string name="notif_drop_title">⚠️ Sudden signal drop!</string>
+    <string name="notif_drop_text_fmt">Your signal dropped to %1$s</string>
+    <string name="widget_net_na">Network: —</string>
+    <string name="widget_signal_na">Signal: —</string>
+
+    <!-- ─── Compatibility ─── -->
+    <string name="toast_no_app">No app found for this action.</string>
+</resources>

@@ -111,7 +111,7 @@ class HistoryChartView @JvmOverloads constructor(
     }
 
     private fun formatMbpsShort(v: Double): String =
-        String.format(Locale.US, "%.1f", v).replace('.', '٫').toPersianDigits()
+        String.format(Locale.US, "%.1f", v).replace('.', '٫').toDigits()
 
     private fun dp(v: Float): Float = v * resources.displayMetrics.density
 

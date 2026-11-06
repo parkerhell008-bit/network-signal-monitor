@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="28dp">
+
+        <!-- ═════ مشخصات کامل ارتباطات ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_tower" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_tower_title" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rat" />
+                    <TextView
+                        android:id="@+id/tvServingRat"
+                        style="@style/RowValue"
+                        tools:text="4G – LTE" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_mccmnc" />
+                    <TextView
+                        android:id="@+id/tvServingMccMnc"
+                        style="@style/RowValue"
+                        tools:text="432 – 11" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_cid" />
+                    <TextView
+                        android:id="@+id/tvServingCid"
+                        style="@style/RowValue"
+                        tools:text="۲۲۴۴۵۵" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_enb" />
+                    <TextView
+                        android:id="@+id/tvServingEnb"
+                        style="@style/RowValue"
+                        tools:text="۸۷۶" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_pci" />
+                    <TextView
+                        android:id="@+id/tvServingPci"
+                        style="@style/RowValue"
+                        tools:text="۲۳۱" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_tac" />
+                    <TextView
+                        android:id="@+id/tvServingTac"
+                        style="@style/RowValue"
+                        tools:text="۳۲۱" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_earfcn" />
+                    <TextView
+                        android:id="@+id/tvServingEarfcn"
+                        style="@style/RowValue"
+                        tools:text="۱۳۰۰" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_band" />
+                    <TextView
+                        android:id="@+id/tvServingBand"
+                        style="@style/RowValue"
+                        android:textColor="@color/emerald"
+                        tools:text="باند ۳" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_frequency" />
+                    <TextView
+                        android:id="@+id/tvServingFreq"
+                        style="@style/RowValue"
+                        tools:text="حدود ۱۸۱۵ مگاهرتز" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_bandwidth" />
+                    <TextView
+                        android:id="@+id/tvServingBandwidth"
+                        style="@style/RowValue"
+                        tools:text="۲۰ مگاهرتز" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_ta" />
+                    <TextView
+                        android:id="@+id/tvServingTa"
+                        style="@style/RowValue"
+                        tools:text="۱۲" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_ta_distance" />
+                    <TextView
+                        android:id="@+id/tvTaDistance"
+                        style="@style/RowValue"
+                        tools:text="حدود ۹۳۷ متر" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/ta_hint"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10.5sp" />
+
+                <TextView style="@style/SectionLabel"
+                    android:text="@string/card_signal_title" />
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rsrp" />
+                    <TextView
+                        android:id="@+id/tvServingRsrp"
+                        style="@style/RowValue"
+                        tools:text="-۹۵ dBm" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rsrq" />
+                    <TextView
+                        android:id="@+id/tvServingRsrq"
+                        style="@style/RowValue"
+                        tools:text="-۱۱ dB" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_snr" />
+                    <TextView
+                        android:id="@+id/tvServingSinr"
+                        style="@style/RowValue"
+                        tools:text="۱۸ dB" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rssi" />
+                    <TextView
+                        android:id="@+id/tvServingRssi"
+                        style="@style/RowValue"
+                        tools:text="-۶۷ dBm" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ فاصله تا دکل ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_tower" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_distance_title" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvTowerDistance"
+                    style="@style/BigValue"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/distance_na"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/tvDistanceSource"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
+
+                <TextView
+                    android:id="@+id/tvDistanceAcc"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLocateTower"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/btn_locate"
+                    android:textColor="@color/chip_text"
+                    app:backgroundTint="@color/emerald" />
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_bearing" />
+                    <TextView
+                        android:id="@+id/tvTowerBearing"
+                        style="@style/RowValue"
+                        tools:text="شمال‌شرقی (۴۵ درجه)" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_gps" />
+                    <TextView
+                        android:id="@+id/tvGpsCoords"
+                        style="@style/RowValue"
+                        tools:text="35.74480, 51.37530" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ قطب‌نما ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_compass" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_compass_title" />
+                </LinearLayout>
+
+                <ir.netsignal.monitor.CompassView
+                    android:id="@+id/compassView"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/compass_hint"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ نقشهٔ دکل ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_map" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_map_title" />
+                </LinearLayout>
+
+                <org.osmdroid.views.MapView
+                    android:id="@+id/mapView"
+                    android:layout_width="match_parent"
+                    android:layout_height="240dp"
+                    android:layout_marginTop="10dp" />
+
+                <TextView
+                    android:id="@+id/tvMapHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/map_hint"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ سلول‌های اطراف ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    style="@style/SectionLabel"
+                    android:layout_marginTop="0dp"
+                    android:text="@string/neighbors_title" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerCells"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_cell" />
+
+                <TextView
+                    android:id="@+id/tvNoCells"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/no_cells"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ لاگ جابجایی دکل ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_swap" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_handover_title" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvHandoverEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/handover_empty"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:id="@+id/llHandover"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="vertical" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnClearHandover"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/btn_clear_handover"
+                    android:textColor="@color/text_secondary"
+                    app:strokeColor="@color/stroke" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>

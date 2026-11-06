@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 /**
  * مدل یک ردیفِ سلول (سروینگ یا همسایه) برای نمایش در RecyclerView.
- * مقادیر متنی از قبل به رشته‌های نمایشی (با ارقام فارسی یا «—») تبدیل شده‌اند.
+ * مقادیر متنی از قبل به رشته‌های نمایشی (با ارقام بومی یا «—») تبدیل شده‌اند.
  */
 data class CellRow(
     val rat: String,
@@ -21,35 +21,9 @@ data class CellRow(
     val earfcnOrArfcn: String,
     val dbm: Int?,
     val registered: Boolean,
-    val distanceText: String = "—"
+    val distanceText: String = "—",
+    val bandText: String = "—"
 )
-
-/** تبدیل ارقام لاتین به ارقام فارسی */
-fun String.toPersianDigits(): String {
-    val builder = StringBuilder(length)
-    for (ch in this) {
-        builder.append(
-            when (ch) {
-                '0' -> '۰'
-                '1' -> '۱'
-                '2' -> '۲'
-                '3' -> '۳'
-                '4' -> '۴'
-                '5' -> '۵'
-                '6' -> '۶'
-                '7' -> '۷'
-                '8' -> '۸'
-                '9' -> '۹'
-                else -> ch
-            }
-        )
-    }
-    return builder.toString()
-}
-
-fun Int.toPersianDigits(): String = toString().toPersianDigits()
-
-fun Long.toPersianDigits(): String = toString().toPersianDigits()
 
 /**
  * آداپتور لیست سلول‌های اطراف / سروینگ.
@@ -79,11 +53,17 @@ class CellAdapter : RecyclerView.Adapter<CellAdapter.CellViewHolder>() {
             rat.text = row.rat + " • " + context.getString(
                 if (row.registered) R.string.tag_serving else R.string.tag_neighbor
             )
-            ids.text = "PCI/PSC: " + row.pciOrPsc +
+            val bandPart = if (row.bandText != "—" && row.bandText.isNotBlank()) {
+                context.getString(R.string.cell_band_fmt, row.bandText) + " • "
+            } else {
+                ""
+            }
+            ids.text = bandPart +
+                "PCI/PSC: " + row.pciOrPsc +
                 "  |  CID/NCI: " + row.cidOrNci +
                 "\nTAC/LAC: " + row.tacOrLac +
                 "  |  EARFCN/ARFCN: " + row.earfcnOrArfcn
-            dbm.text = row.dbm?.let { it.toString().toPersianDigits() + " dBm" } ?: "—"
+            dbm.text = row.dbm?.let { it.toString().toDigits() + " dBm" } ?: "—"
             distance.text = row.distanceText
         }
 

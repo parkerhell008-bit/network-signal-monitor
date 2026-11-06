@@ -1,0 +1,573 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="28dp">
+
+        <!-- ═════ امتیاز کیفیت شبکه ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_speed" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/score_title" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvQualityScore"
+                    style="@style/BigValue"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/no_data"
+                    tools:text="۷۸" />
+
+                <TextView
+                    android:id="@+id/tvScoreLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    tools:text="خوب" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ وضعیت سیگنال و شبکه ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_signal" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_status_title" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ir.netsignal.monitor.SignalGaugeView
+                        android:id="@+id/gaugeView"
+                        android:layout_width="0dp"
+                        android:layout_height="190dp"
+                        android:layout_weight="1.1" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical">
+
+                        <ir.netsignal.monitor.SignalBarsView
+                            android:id="@+id/barsView"
+                            android:layout_width="match_parent"
+                            android:layout_height="44dp" />
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/chipNetwork"
+                            style="@style/Widget.Material3.Chip.Assist"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:checkable="false"
+                            android:text="@string/no_data"
+                            android:textColor="@color/chip_text"
+                            android:textStyle="bold"
+                            app:chipBackgroundColor="@color/emerald"
+                            app:chipStrokeWidth="0dp" />
+
+                        <TextView
+                            android:id="@+id/tvSignalScore"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:text="@string/no_data"
+                            android:textAlignment="center"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12.5sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/chart_live_hint"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
+
+                <ir.netsignal.monitor.SignalChartView
+                    android:id="@+id/signalChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="110dp"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/tvSigStats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/no_data"
+                    android:textAlignment="center"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_dbm" />
+                    <TextView
+                        android:id="@+id/tvDbm"
+                        style="@style/RowValue"
+                        tools:text="-۸۷ dBm" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rsrp" />
+                    <TextView
+                        android:id="@+id/tvRsrp"
+                        style="@style/RowValue"
+                        tools:text="-۹۵ dBm" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rsrq" />
+                    <TextView
+                        android:id="@+id/tvRsrq"
+                        style="@style/RowValue"
+                        tools:text="-۱۱ dB" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_snr" />
+                    <TextView
+                        android:id="@+id/tvSnr"
+                        style="@style/RowValue"
+                        tools:text="۱۸ dB" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_rssi" />
+                    <TextView
+                        android:id="@+id/tvRssi"
+                        style="@style/RowValue"
+                        tools:text="-۶۷ dBm" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_asu" />
+                    <TextView
+                        android:id="@+id/tvAsu"
+                        style="@style/RowValue"
+                        tools:text="۵۳" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_level" />
+                    <TextView
+                        android:id="@+id/tvLevel"
+                        style="@style/RowValue"
+                        tools:text="خوب" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_operator" />
+                    <TextView
+                        android:id="@+id/tvOperatorName"
+                        style="@style/RowValue"
+                        tools:text="همراه اول" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_sim_operator" />
+                    <TextView
+                        android:id="@+id/tvSimOperator"
+                        style="@style/RowValue"
+                        tools:text="IR-MCI" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_sim_state" />
+                    <TextView
+                        android:id="@+id/tvSimState"
+                        style="@style/RowValue"
+                        tools:text="آماده" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_country" />
+                    <TextView
+                        android:id="@+id/tvCountryIso"
+                        style="@style/RowValue"
+                        tools:text="IR" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_roaming" />
+                    <TextView
+                        android:id="@+id/tvRoaming"
+                        style="@style/RowValue"
+                        tools:text="غیرفعال" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_data_state" />
+                    <TextView
+                        android:id="@+id/tvDataState"
+                        style="@style/RowValue"
+                        tools:text="متصل" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_data_activity" />
+                    <TextView
+                        android:id="@+id/tvDataActivity"
+                        style="@style/RowValue"
+                        tools:text="ارسال و دریافت" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/InfoRow">
+                    <TextView
+                        style="@style/RowLabel"
+                        android:text="@string/label_modems" />
+                    <TextView
+                        android:id="@+id/tvPhoneCount"
+                        style="@style/RowValue"
+                        tools:text="۲" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ ترافیک لحظه‌ای ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_traffic" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_traffic_title" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/MiniPanel">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/label_live_down" />
+                        <TextView
+                            android:id="@+id/tvLiveDown"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na"
+                            android:textColor="@color/sig_good" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/MiniPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/label_live_up" />
+                        <TextView
+                            android:id="@+id/tvLiveUp"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na"
+                            android:textColor="@color/sig_mid" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ تست سرعت ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_speed" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_speed_title" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSpeedTest"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/btn_start_speed"
+                    android:textColor="@color/chip_text"
+                    app:backgroundTint="@color/emerald" />
+
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                    android:id="@+id/progressSpeed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:max="100"
+                    android:progress="0"
+                    app:indicatorColor="@color/emerald"
+                    app:trackColor="@color/gauge_track"
+                    app:trackCornerRadius="4dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal">
+
+                    <LinearLayout style="@style/MiniPanel">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/label_ping" />
+                        <TextView
+                            android:id="@+id/tvPing"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/MiniPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/label_download" />
+                        <TextView
+                            android:id="@+id/tvDownload"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="@style/MiniPanel"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            style="@style/MiniPanelLabel"
+                            android:text="@string/label_upload" />
+                        <TextView
+                            android:id="@+id/tvUpload"
+                            style="@style/MiniPanelValue"
+                            android:text="@string/speed_na" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvSpeedStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/speed_status_idle"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- ═════ تاریخچه تست سرعت ═════ -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/stroke"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        style="@style/CardIcon"
+                        app:srcCompat="@drawable/ic_history" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="@string/card_history_title" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/history_auto_saved"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <ir.netsignal.monitor.HistoryChartView
+                    android:id="@+id/historyChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="140dp"
+                    android:layout_marginTop="8dp" />
+
+                <TextView
+                    android:id="@+id/tvHistoryCount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/no_data"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvHistoryEmpty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="@string/history_empty"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <LinearLayout
+                    android:id="@+id/llHistoryList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="vertical" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnClearHistory"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/btn_clear_history"
+                    android:textColor="@color/text_secondary"
+                    app:strokeColor="@color/stroke" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/privacy_note"
+            android:textAlignment="center"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>

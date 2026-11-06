@@ -2,15 +2,25 @@
 <resources>
     <!-- ─── عمومی ─── -->
     <string name="app_name">مانیتور سیگنال شبکه</string>
-    <string name="app_subtitle">پایش لحظه‌ای وضعیت شبکه، اطلاعات دکل‌های مخابراتی و تست سرعت اینترنت</string>
-    <string name="permission_gate">برای نمایش اطلاعات سیم‌کارت، سیگنال و دکل‌ها، مجوزهای «تلفن» و «موقعیت مکانی» را تأیید کنید.</string>
+    <string name="app_subtitle">پایش لحظه‌ای شبکه، مشخصات کامل ارتباطات، دکل‌ها و تست سرعت</string>
+    <string name="permission_gate">برای نمایش اطلاعات سیم‌کارت، سیگنال و دکل‌ها، مجوزهای «تلفن» و «موقعیت مکانی» را تأیید کنید. برای باز شدن دوبارهٔ درخواست، همین کادر را لمس کنید.</string>
     <string name="no_data">—</string>
     <string name="unknown_operator">ناشناخته</string>
     <string name="roaming_on">فعال (رومینگ بین‌المللی)</string>
     <string name="roaming_off">غیرفعال (شبکه داخلی)</string>
     <string name="gauge_unit_dbm">dBm — دسی‌بل‌میل‌وات</string>
+    <string name="refresh_desc">تازه‌سازی همهٔ اطلاعات</string>
+    <string name="unknown">نامشخص</string>
+    <string name="unknown_type_fmt">نوع ناشناخته (%1$d)</string>
 
-    <!-- ─── کارت وضعیت سیگنال و شبکه ─── -->
+    <!-- ─── تب‌ها ─── -->
+    <string name="tab_dashboard">داشبورد</string>
+    <string name="tab_network">شبکه</string>
+    <string name="tab_sim">سیم‌کارت</string>
+    <string name="tab_tools">ابزارها</string>
+    <string name="tab_settings">تنظیمات</string>
+
+    <!-- ─── داشبورد ─── -->
     <string name="card_status_title">وضعیت سیگنال و شبکه</string>
     <string name="label_operator">اپراتور شبکه</string>
     <string name="label_sim_operator">اپراتور سیم‌کارت</string>
@@ -20,35 +30,93 @@
     <string name="label_data_state">وضعیت داده</string>
     <string name="label_data_activity">فعالیت داده</string>
     <string name="label_modems">تعداد مودم‌های فعال</string>
-
-    <!-- ─── کارت جزئیات سیگنال ─── -->
     <string name="card_signal_title">جزئیات قدرت سیگنال</string>
     <string name="label_dbm">قدرت سیگنال (dBm)</string>
     <string name="label_asu">ASU</string>
     <string name="label_level">سطح سیگنال</string>
     <string name="label_rsrp">RSRP</string>
     <string name="label_rsrq">RSRQ</string>
-    <string name="label_snr">SNR</string>
+    <string name="label_snr">SNR / SINR</string>
     <string name="label_rssi">RSSI</string>
+    <string name="score_title">امتیاز کیفیت شبکه</string>
+    <string name="score_fmt">%1$s از ۱۰۰</string>
+    <string name="score_excellent">عالی</string>
+    <string name="score_good">خوب</string>
+    <string name="score_moderate">متوسط</string>
+    <string name="score_weak">ضعیف</string>
+    <string name="score_very_weak">خیلی ضعیف</string>
+    <string name="sig_stats_fmt">میانگین: %1$s • کمینه: %2$s • بیشینه: %3$s</string>
+    <string name="chart_live_hint">نمودار زندهٔ سیگنال (۶۰ نمونهٔ اخیر)</string>
 
-    <!-- ─── کارت دکل متصل ─── -->
-    <string name="card_tower_title">دکل متصل (سروینگ)</string>
+    <!-- ─── متن‌های وضعیت (کد) ─── -->
+    <string name="sim_state_absent">سیم‌کارت موجود نیست</string>
+    <string name="sim_state_pin">قفل با PIN</string>
+    <string name="sim_state_puk">قفل با PUK</string>
+    <string name="sim_state_network_locked">قفل شبکه</string>
+    <string name="sim_state_ready">آماده</string>
+    <string name="sim_state_not_ready">غیرفعال</string>
+    <string name="sim_state_perm_disabled">غیرفعال دائمی</string>
+    <string name="sim_state_card_io">خطای سخت‌افزاری سیم‌کارت</string>
+    <string name="sim_state_restricted">محدودشده</string>
+    <string name="data_state_connected">متصل</string>
+    <string name="data_state_connecting">در حال اتصال</string>
+    <string name="data_state_disconnected">قطع</string>
+    <string name="data_state_suspended">معلق</string>
+    <string name="data_activity_none">بدون ترافیک</string>
+    <string name="data_activity_in">دریافت داده</string>
+    <string name="data_activity_out">ارسال داده</string>
+    <string name="data_activity_inout">ارسال و دریافت</string>
+    <string name="data_activity_dormant">خوابیده (Dormant)</string>
+    <string name="level_excellent">عالی</string>
+    <string name="level_good">خوب</string>
+    <string name="level_moderate">متوسط</string>
+    <string name="level_weak">ضعیف</string>
+    <string name="level_very_weak">خیلی ضعیف</string>
+    <string name="unit_ms_fmt">%1$s میلی‌ثانیه</string>
+    <string name="unit_mbps_fmt">%1$s مگابیت بر ثانیه</string>
+    <string name="unit_meters">متر</string>
+    <string name="unit_kilometers">کیلومتر</string>
+    <string name="unit_degrees">درجه</string>
+    <string name="bearing_n">شمال</string>
+    <string name="bearing_ne">شمال‌شرقی</string>
+    <string name="bearing_e">شرقی</string>
+    <string name="bearing_se">جنوب‌شرقی</string>
+    <string name="bearing_s">جنوب</string>
+    <string name="bearing_sw">جنوب‌غربی</string>
+    <string name="bearing_w">غرب</string>
+    <string name="bearing_nw">شمال‌غربی</string>
+    <string name="bearing_fmt">%1$s (%2$s %3$s)</string>
+
+    <!-- ─── صفحهٔ شبکه: دکل سروینگ ─── -->
+    <string name="card_tower_title">مشخصات کامل ارتباطات — دکل متصل</string>
     <string name="label_rat">نسل و نوع شبکه</string>
     <string name="label_pci">PCI / PSC</string>
     <string name="label_cid">CID / NCI</string>
+    <string name="label_enb">شناسهٔ ایستگاه (eNB ID)</string>
     <string name="label_tac">TAC / LAC</string>
     <string name="label_earfcn">EARFCN / ARFCN</string>
+    <string name="label_band">باند فرکانسی</string>
     <string name="label_mccmnc">MCC / MNC</string>
     <string name="label_bandwidth">پهنای باند</string>
+    <string name="label_ta">پیشرفت زمانی (TA)</string>
+    <string name="label_ta_distance">فاصله از TA</string>
+    <string name="label_frequency">فرکانس تخمینی</string>
+    <string name="band_fmt">باند %1$s</string>
+    <string name="band_combined_fmt">باند %1$s / %2$s</string>
+    <string name="freq_fmt">حدود %1$s مگاهرتز</string>
+    <string name="unit_mhz">مگاهرتز</string>
+    <string name="ta_value_fmt">%1$s (سطح %2$d)</string>
+    <string name="ta_dist_fmt">حدود %1$s</string>
+    <string name="ta_hint">هر واحد TA در LTE ≈ ۷۸ متر فاصلهٔ رادیویی است.</string>
     <string name="neighbors_title">سلول‌های اطراف</string>
     <string name="no_cells">هنوز اطلاعاتی از سلول‌ها دریافت نشده است…</string>
     <string name="tag_serving">سروینگ</string>
     <string name="tag_neighbor">همسایه</string>
+    <string name="cell_band_fmt">باند %1$s</string>
 
-    <!-- ─── کارت فاصله تا دکل (خودکار) ─── -->
+    <!-- ─── فاصله تا دکل ─── -->
     <string name="card_distance_title">فاصله تا دکل (کاملاً خودکار)</string>
-    <string name="btn_locate">محاسبهٔ فاصله با GPS</string>
-    <string name="btn_update_distance">به‌روزرسانی فاصله</string>
+    <string name="btn_locate">محاسبهٔ مجدد فاصله</string>
     <string name="label_distance">فاصله تخمینی تا دکل</string>
     <string name="label_source">منبع موقعیت دکل</string>
     <string name="label_bearing">جهت دکل</string>
@@ -59,26 +127,46 @@
     <string name="distance_acc_fmt">دقت تخمینی: ±%1$s</string>
     <string name="msg_getting_gps">در حال دریافت موقعیت GPS…</string>
     <string name="msg_querying_db">در حال یافتن موقعیت دکل…</string>
-    <string name="err_providers_failed">دیتابیس‌های موقعیت دکل موقتاً در دسترس نیستند؛ تخمین تقریبی نمایش داده شد.</string>
-    <string name="hint_api_key">کلید OpenCelliD (اختیاری — برای بیشترین دقت)</string>
-    <string name="btn_save_key">ذخیره کلید</string>
-    <string name="distance_na">برای محاسبه فاصله، دکمه بالا را بزنید.</string>
     <string name="err_gps_failed">دریافت موقعیت GPS ناموفق بود.</string>
-    <string name="err_no_key">برای موقعیت دقیق، کلید رایگان OpenCelliD را در «تنظیمات پیشرفته» وارد کنید — یا از تخمین خودکار استفاده کنید.</string>
     <string name="err_no_cell">اطلاعات عددی دکل متصل در دسترس نیست؛ لحظه‌ای بعد دوباره تلاش کنید.</string>
-    <string name="err_nr_distance">محاسبه فاصله برای شبکه 5G در OpenCelliD پشتیبانی نمی‌شود.</string>
-    <string name="msg_key_saved">کلید API ذخیره شد.</string>
-    <string name="msg_key_empty">کلید API را وارد کنید.</string>
     <string name="err_generic">خطا: %1$s</string>
+    <string name="distance_na">با تغییر دکل یا لمس دکمه، فاصله به‌صورت خودکار محاسبه می‌شود.</string>
 
-    <!-- ─── کارت سیم‌کارت‌ها ─── -->
+    <!-- ─── نقشه و قطب‌نما ─── -->
+    <string name="card_map_title">نقشهٔ موقعیت دکل</string>
+    <string name="map_hint">پس از یافتن موقعیت دکل، نشانگر سبز روی نقشه ظاهر می‌شود.</string>
+    <string name="map_user">موقعیت شما</string>
+    <string name="map_tower">دکل متصل</string>
+    <string name="card_compass_title">قطب‌نما — جهت دکل</string>
+    <string name="compass_hint">گوشی را صاف نگه دارید؛ فلش سبز جهت دکل نسبت به شماست و عقربهٔ خاکستری جهت گوشی.</string>
+
+    <!-- ─── جابجایی دکل ─── -->
+    <string name="card_handover_title">گزارش جابجایی دکل (Handover)</string>
+    <string name="handover_empty">هنوز جابجایی بین دکل‌ها ثبت نشده است؛ هنگام جابجایی، اینجا ثبت می‌شود.</string>
+    <string name="handover_fmt">%1$s — %2$s ← %3$s</string>
+    <string name="btn_clear_handover">پاک کردن گزارش</string>
+    <string name="handover_cleared">گزارش جابجایی پاک شد.</string>
+
+    <!-- ─── سیم‌کارت‌ها ─── -->
     <string name="card_sim_title">اطلاعات سیم‌کارت‌ها (Dual SIM)</string>
     <string name="sim_count_fmt">تعداد سیم‌کارت‌های فعال: %1$d</string>
-    <string name="sim_row_fmt">سیم‌کارت %1$d (اسلات %2$s) — اپراتور: %3$s — شبکه: %4$s</string>
+    <string name="sim_card_title_fmt">سیم‌کارت %1$d — اسلات %2$s</string>
     <string name="sim_none">هیچ سیم‌کارتی فعال نیست.</string>
     <string name="sim_no_permission">نمایش اطلاعات سیم‌کارت‌ها نیازمند مجوز «وضعیت تلفن» است.</string>
+    <string name="sim_requires_api22">نمایش سیم‌کارت‌ها نیازمند اندروید ۵٫۱ یا بالاتر است.</string>
+    <string name="sim_page_note">برخی گوشی‌ها فقط مشخصات کاملِ سیم‌کارتِ فعالِ داده را می‌دهند؛ برای سیم دیگر، مقادیر «—» طبیعی است. با دکمهٔ پایین هر کارت می‌توانید دکل همان سیم را بررسی کنید.</string>
+    <string name="label_sim_carrier">اپراتور</string>
+    <string name="label_sim_display">نام نمایشی</string>
+    <string name="label_sim_net_type">نوع شبکه</string>
+    <string name="label_sim_signal">قدرت سیگنال</string>
+    <string name="label_sim_roaming">رومینگ</string>
+    <string name="label_sim_subid">شناسهٔ سابسکریپشن</string>
+    <string name="btn_inspect_sim">نمایش دکل این سیم‌کارت</string>
+    <string name="btn_inspect_default">بازگشت به سیم‌کارت اصلی</string>
+    <string name="inspect_active_fmt">در حال نمایش مشخصات دکل سیم‌کارت %1$d</string>
+    <string name="sim_signal_na">در دسترس نیست</string>
 
-    <!-- ─── کارت تست سرعت ─── -->
+    <!-- ─── تست سرعت ─── -->
     <string name="card_speed_title">تست سرعت اینترنت</string>
     <string name="btn_start_speed">شروع تست سرعت</string>
     <string name="btn_stop_speed">لغو تست</string>
@@ -91,8 +179,6 @@
     <string name="speed_status_error">خطا در تست سرعت</string>
     <string name="speed_no_internet">اتصال اینترنت یافت نشد؛ ابتدا به شبکه متصل شوید.</string>
     <string name="location_needed_for_cells">بدون مجوز «موقعیت مکانی»، اندروید شناسهٔ دکل‌های اطراف را مخفی می‌کند؛ برای دیدن دکل‌ها و فاصله، مجوز موقعیت را هم تأیید کنید.</string>
-
-    <!-- ─── کارت تاریخچه تست سرعت ─── -->
     <string name="card_history_title">تاریخچه تست‌های سرعت</string>
     <string name="history_auto_saved">پس از هر تست کامل، نتیجه به‌صورت خودکار روی حافظهٔ خود گوشی ذخیره می‌شود.</string>
     <string name="history_empty">هنوز تستی ثبت نشده است؛ با اجرای تست سرعت، روند نتایج اینجا رسم می‌شود.</string>
@@ -102,35 +188,90 @@
     <string name="chart_legend_upload">آپلود</string>
     <string name="btn_clear_history">پاک کردن تاریخچه</string>
     <string name="history_cleared">تاریخچه پاک شد.</string>
-
-    <!-- ─── کارت اطلاعات دستگاه ─── -->
-    <string name="card_device_title">اطلاعات دستگاه</string>
-    <string name="label_device_model">مدل دستگاه</string>
-    <string name="label_device_os">نسخه اندروید</string>
-    <string name="label_device_screen">صفحه‌نمایش</string>
-    <string name="label_device_battery">باتری</string>
-    <string name="label_device_uptime">مدت روشن بودن</string>
-    <string name="label_device_cpu">معماری پردازنده</string>
-    <string name="battery_charging">در حال شارژ</string>
-    <string name="battery_discharging">روی باتری</string>
-
-    <!-- ─── ترافیک لحظه‌ای ─── -->
     <string name="card_traffic_title">ترافیک لحظه‌ای اینترنت گوشی</string>
     <string name="label_live_down">دریافت لحظه‌ای</string>
     <string name="label_live_up">ارسال لحظه‌ای</string>
     <string name="speed_na">—</string>
-    <string name="kbps_fmt">%1$s کیلوبیت بر ثانیه</string>
 
-    <!-- ─── امتیاز کیفیت ─── -->
-    <string name="score_fmt">کیفیت شبکه: %1$s از ۱۰۰</string>
+    <!-- ─── ابزارها: پینگ ─── -->
+    <string name="card_ping_title">تست پینگ حرفه‌ای</string>
+    <string name="ping_target_label">سرور هدف</string>
+    <string name="btn_ping_run">اجرای تست پینگ</string>
+    <string name="btn_ping_stop">توقف</string>
+    <string name="ping_min">کمترین</string>
+    <string name="ping_avg">میانگین</string>
+    <string name="ping_max">بیشترین</string>
+    <string name="ping_jitter">جیتر</string>
+    <string name="ping_loss">بسته از دست‌رفته</string>
+    <string name="loss_fmt">%1$s٪</string>
+    <string name="ping_packets_fmt">%1$s از %2$s</string>
+    <string name="ping_status_idle">آمادهٔ تست… سرور را انتخاب و دکمه را بزنید.</string>
+    <string name="ping_status_running">در حال ارسال بسته‌ها…</string>
+    <string name="ping_method_icmp">روش: ICMP سیستمی (واقعی)</string>
+    <string name="ping_method_http">روش: HTTP (ICMP در این گوشی مسدود بود)</string>
+    <string name="ping_note">پینگ واقعی با بسته‌های ICMP سیستم انجام می‌شود؛ اگر گوشی اجازه ندهد، خودکار به روش HTTP سوییچ می‌شود.</string>
+    <string name="err_ping_failed">پینگ ناموفق بود؛ اتصال اینترنت یا سرور هدف را بررسی کنید.</string>
+    <string name="chip_ping_google">گوگل ۸٫۸٫۸٫۸</string>
+    <string name="chip_ping_cloudflare">کلادفلر ۱٫۱٫۱٫۱</string>
+    <string name="chip_ping_shecan">شکن (ایرانی)</string>
+    <string name="chip_ping_begzar">بگذر (ایرانی)</string>
+    <string name="chip_ping_level3">لول۳ ۴٫۲٫۲٫۴</string>
 
-    <!-- ─── اشتراک‌گذاری و سایر ─── -->
+    <!-- ─── ابزارها: DNS ─── -->
+    <string name="card_dns_title">تست سرعت DNS</string>
+    <string name="btn_dns_run">اجرای تست DNS</string>
+    <string name="dns_status_idle">آمادهٔ تست…</string>
+    <string name="dns_status_running">در حال بررسی دامنه‌ها…</string>
+    <string name="dns_note">زمانِ تبدیل نام دامنه به آی‌پی؛ همین زمانِ باز شدن اولین اتصال اینترنت شماست.</string>
+    <string name="dns_row_fmt">%1$s — %2$s</string>
+    <string name="dns_fail">ناموفق</string>
+
+    <!-- ─── ابزارها: گزارش‌ها ─── -->
+    <string name="card_reports_title">خروجی گزارش‌ها</string>
+    <string name="btn_export_csv">خروجی CSV تاریخچهٔ سیگنال</string>
+    <string name="btn_export_pdf">گزارش کامل PDF</string>
+    <string name="btn_export_speed_csv">خروجی CSV تست‌های سرعت</string>
+    <string name="reports_note">فایل ساخته‌شده از پنجرهٔ اشتراک‌گذاری، قابل ذخیره در گوشی یا ارسال است.</string>
+    <string name="export_none">هنوز داده‌ای برای خروجی ثبت نشده است.</string>
+    <string name="export_done">فایل گزارش آماده شد.</string>
+    <string name="export_failed">ساخت گزارش ناموفق بود: %1$s</string>
+    <string name="report_building">در حال ساخت گزارش…</string>
     <string name="share_via">اشتراک‌گذاری گزارش شبکه</string>
     <string name="share_header">📡 گزارش شبکه — مانیتور سیگنال\n\n</string>
-    <string name="advanced_toggle_show">▼ تنظیمات پیشرفته — کلید OpenCelliD (اختیاری)</string>
-    <string name="advanced_toggle_hide">▲ بستن تنظیمات پیشرفته</string>
+
+    <!-- ─── تنظیمات ─── -->
+    <string name="card_appearance_title">ظاهر و زبان</string>
+    <string name="theme_label">تم برنامه</string>
+    <string name="theme_system">سیستم</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_dark">تاریک</string>
+    <string name="dynamic_color_label">رنگ پویا (اندروید ۱۲+)</string>
+    <string name="dynamic_color_hint">رنگ برنامه با رنگ کاغذدیواری شما هماهنگ می‌شود.</string>
+    <string name="dynamic_color_applied">ذخیره شد؛ برای اعمال کامل، برنامه را دوباره باز کنید.</string>
+    <string name="language_label">زبان برنامه</string>
+    <string name="lang_applied">زبان برنامه تغییر کرد.</string>
+    <string name="card_monitor_title">پایش پس‌زمینه</string>
+    <string name="monitor_label">ثبت سیگنال در پس‌زمینه + اعلان دائمی</string>
+    <string name="monitor_desc">سرویس سبک: سیگنال را هر ۵ ثانیه ثبت می‌کند، در نوار اعلان نمایش می‌دهد، هنگام افت ناگهانی هشدار می‌دهد و ویجت صفحهٔ اصلی را به‌روز نگه می‌دارد.</string>
+    <string name="monitor_started">پایش پس‌زمینه روشن شد.</string>
+    <string name="monitor_stopped">پایش پس‌زمینه خاموش شد.</string>
+    <string name="monitor_permission_needed">برای نمایش اعلان، مجوز اعلان‌ها را تأیید کنید.</string>
+    <string name="card_about_title">دربارهٔ برنامه</string>
+    <string name="about_version_fmt">نسخهٔ %1$s</string>
+    <string name="about_repo">مشاهدهٔ سورس‌کد در گیت‌هاب</string>
+    <string name="about_made">ابزار حرفه‌ای پایش شبکه‌های موبایل — تمام داده‌ها فقط روی خود گوشی می‌مانند.</string>
     <string name="privacy_note">🔒 هیچ داده‌ای به سروری ارسال نمی‌شود؛ موقعیت شما فقط برای محاسبهٔ فاصله تا دکل استفاده می‌شود.</string>
 
-    <!-- ─── سازگاری نسخه‌های قدیمی ─── -->
-    <string name="sim_requires_api22">نمایش سیم‌کارت‌ها نیازمند اندروید ۵٫۱ یا بالاتر است.</string>
+    <!-- ─── سرویس و ویجت ─── -->
+    <string name="notif_channel_name">پایش سیگنال</string>
+    <string name="notif_channel_desc">نمایش لحظه‌ای وضعیت شبکه در نوار اعلان</string>
+    <string name="notif_title">در حال پایش شبکه</string>
+    <string name="notif_text_fmt">%1$s — سیگنال: %2$s</string>
+    <string name="notif_drop_title">⚠️ افت ناگهانی سیگنال!</string>
+    <string name="notif_drop_text_fmt">سیگنال شما به %1$s رسید</string>
+    <string name="widget_net_na">شبکه: —</string>
+    <string name="widget_signal_na">سیگنال: —</string>
+
+    <!-- ─── سازگاری ─── -->
+    <string name="toast_no_app">برنامه‌ای برای این کار پیدا نشد.</string>
 </resources>

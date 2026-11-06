@@ -137,7 +137,7 @@ class SignalGaugeView @JvmOverloads constructor(
 
         // ۴) متن مرکزی: مقدار dBm + واحد
         val textBaseline = cy + radius * 0.34f
-        val valueText = lastValidDbm?.let { it.toString().toPersianDigits() } ?: "—"
+        val valueText = lastValidDbm?.let { it.toString().toDigits() } ?: "—"
         canvas.drawText(valueText, cx, textBaseline, valueTextPaint)
         canvas.drawText(
             context.getString(R.string.gauge_unit_dbm),

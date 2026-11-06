@@ -105,7 +105,7 @@ object SpeedTester {
                 throw IOException(
                     "هیچ داده‌ای دانلود نشد" +
                         if (downloadFailures.get() > 0) {
-                            " (خطای " + downloadFailures.get().toString().toPersianDigits() + " جریان از ۴ جریان موازی)"
+                            " (خطای " + downloadFailures.get().toString().toDigits() + " جریان از ۴ جریان موازی)"
                         } else {
                             " (احتمالاً اتصال مسدود است)"
                         }
@@ -134,7 +134,7 @@ object SpeedTester {
                 throw IOException(
                     "هیچ داده‌ای ارسال نشد" +
                         if (uploadFailures.get() > 0) {
-                            " (خطای " + uploadFailures.get().toString().toPersianDigits() + " جریان از ۴ جریان موازی)"
+                            " (خطای " + uploadFailures.get().toString().toDigits() + " جریان از ۴ جریان موازی)"
                         } else {
                             ""
                         }

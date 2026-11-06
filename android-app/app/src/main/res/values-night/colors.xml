@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- پالت تیره (حالت شب) -->
+    <color name="background">#0B0F14</color>
+    <color name="surface">#12181F</color>
+    <color name="stroke">#1F2A37</color>
+    <color name="gauge_track">#1E2A36</color>
+
+    <!-- رنگ تأکیدی (زمردی) -->
+    <color name="emerald">#10B981</color>
+    <color name="chip_text">#0B0F14</color>
+
+    <!-- متن -->
+    <color name="text_primary">#E6EDF3</color>
+    <color name="text_secondary">#8B98A5</color>
+
+    <!-- سیگنال: بد / متوسط / خوب -->
+    <color name="sig_bad">#EF4444</color>
+    <color name="sig_mid">#F59E0B</color>
+    <color name="sig_good">#10B981</color>
+
+    <!-- نشان نسل شبکه -->
+    <color name="gen_5g">#10B981</color>
+    <color name="gen_4g">#38BDF8</color>
+    <color name="gen_3g">#F59E0B</color>
+    <color name="gen_2g">#EF4444</color>
+    <color name="gen_unknown">#94A3B8</color>
+</resources>

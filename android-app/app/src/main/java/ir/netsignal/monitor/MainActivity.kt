@@ -5,29 +5,21 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.TrafficStats
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import android.telephony.CellIdentityCdma
-import android.telephony.CellIdentityGsm
-import android.telephony.CellIdentityLte
-import android.telephony.CellIdentityNr
-import android.telephony.CellIdentityWcdma
 import android.telephony.CellInfo
-import android.telephony.CellInfoCdma
-import android.telephony.CellInfoGsm
-import android.telephony.CellInfoLte
-import android.telephony.CellInfoNr
-import android.telephony.CellInfoWcdma
-import android.telephony.CellSignalStrengthLte
-import android.telephony.CellSignalStrengthNr
 import android.telephony.PhoneStateListener
 import android.telephony.SignalStrength
 import android.telephony.SubscriptionInfo
@@ -35,11 +27,14 @@ import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.view.View
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -48,22 +43,26 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.google.android.material.progressindicator.LinearProgressIndicator
-import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -76,22 +75,9 @@ import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity() {
 
-    // ───────────────────────── سازنده‌های داخلی ─────────────────────────
-
-    /** اطلاعات عددی سلول سروینگ برای پرس‌وجوی OpenCelliD */
-    private data class NumericServing(
-        val cid: Int?,
-        val lac: Int?,
-        val mcc: String?,
-        val mnc: String?,
-        val radio: String?,
-        val bandwidthMhz: Int? = null
-    )
-
     private companion object {
-        const val PREFS_NAME = "net_signal_prefs"
-        const val KEY_OPENCELLID = "opencellid_key"
         const val CELL_POLL_INTERVAL_MS = 3000L
+        const val REPO_URL = "https://github.com/parkerhell008-bit/network-signal-monitor"
     }
 
     // ───────────────────────── سرویس‌ها و وضعیت ─────────────────────────
@@ -99,42 +85,101 @@ class MainActivity : AppCompatActivity() {
     private lateinit var telephonyManager: TelephonyManager
     private lateinit var subscriptionManager: SubscriptionManager
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var prefs: SharedPreferences
     private lateinit var cellAdapter: CellAdapter
+    private lateinit var historyDb: SpeedTestHistory
 
     private var phoneListener: PhoneStateListener? = null
     private var cellPollJob: Job? = null
     private var distanceJob: Job? = null
     private var speedTestJob: Job? = null
     private var liveTrafficJob: Job? = null
+    private var pingJob: Job? = null
+    private var dnsJob: Job? = null
 
-    /** فقط یک‌بار به‌طور خودکار دیالوگ مجوز را باز می‌کنیم تا پس از رد شدن،
-     *  دیالوگ در حلقهٔ بی‌پایان onResume دوباره باز نشود؛
-     *  کاربر می‌تواند با لمس کادر راهنما مجدداً درخواست را باز کند. */
     private var autoPromptedOnce = false
 
-    /** اسکوپ مستقل از چرخهٔ حیات برای کارهای کوتاه (ثبت تاریخچه) که نباید
-     *  با بسته‌شدن صفحه نیمه‌کاره بمانند. */
+    /** اسکوپ مستقل از چرخهٔ حیات برای ثبت تاریخچه */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // وضعیت سیگنال/شبکه
     private var lastDbm: Int? = null
+    private val dbmSamples = ArrayDeque<Int>()
     private var lastRsrpVal: Int? = null
+    private var lastServingSpec: CellSpec? = null
     private var lastDistanceText: String? = null
-    private var lastServingGeneration: String? = null
-    private var numericServing: NumericServing? = null
-
-    /** کلید «سلول جاری» برای محاسبهٔ خودکار فاصله فقط در تغییر دکل */
     private var lastAutoDistCellKey: String? = null
 
-    /** خلاصهٔ آخرین تست سرعت برای گزارش اشتراک‌گذاری */
+    // آخرین نتایج تست‌ها (ورودی امتیاز ترکیبی)
+    private var lastPingMs: Double? = null
+    private var lastJitterMs: Double? = null
+    private var lastDownMbps: Double? = null
+    private var lastUpMbps: Double? = null
     private var lastSpeedSummary: String? = null
+
+    // سیم‌کارت‌ها
+    private data class SimCardHolder(
+        val sub: SubscriptionInfo,
+        val subTm: TelephonyManager?,
+        val root: View,
+        val tvNetType: TextView,
+        val tvSignal: TextView,
+        val tvRoaming: TextView,
+        val btnInspect: MaterialButton
+    )
+
+    private val simHolders = mutableListOf<SimCardHolder>()
+
+    /** اگر کاربر «نمایش دکل این سیم» را زده باشد، شناسهٔ آن سابسکریپشن */
+    private var inspectSubId: Int? = null
+
+    // سنسور قطب‌نما
+    private var sensorManager: SensorManager? = null
+    private val sensorListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
+            val rotation = FloatArray(9)
+            SensorManager.getRotationMatrixFromVector(rotation, event.values)
+            val orientation = FloatArray(3)
+            SensorManager.getOrientation(rotation, orientation)
+            val azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
+            compassView.setAzimuth(((azimuth % 360f) + 360f) % 360f)
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    }
 
     // ───────────────────────── ویوها ─────────────────────────
 
     private lateinit var tvPermissionGate: TextView
+    private lateinit var tabLayout: TabLayout
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var btnRefresh: androidx.appcompat.widget.AppCompatImageView
+    private lateinit var btnShare: androidx.appcompat.widget.AppCompatImageView
+
+    // صفحات
+    private lateinit var pageDashboard: ScrollView
+    private lateinit var pageNetwork: ScrollView
+    private lateinit var pageSim: ScrollView
+    private lateinit var pageTools: ScrollView
+    private lateinit var pageSettings: ScrollView
+    private var activeScrollView: ScrollView? = null
+
+    // داشبورد
     private lateinit var gaugeView: SignalGaugeView
     private lateinit var barsView: SignalBarsView
     private lateinit var chipNetwork: Chip
+    private lateinit var tvQualityScore: TextView
+    private lateinit var tvScoreLabel: TextView
+    private lateinit var tvSignalScore: TextView
+    private lateinit var signalChart: SignalChartView
+    private lateinit var tvSigStats: TextView
+    private lateinit var tvDbm: TextView
+    private lateinit var tvAsu: TextView
+    private lateinit var tvLevel: TextView
+    private lateinit var tvRsrp: TextView
+    private lateinit var tvRsrq: TextView
+    private lateinit var tvSnr: TextView
+    private lateinit var tvRssi: TextView
     private lateinit var tvOperatorName: TextView
     private lateinit var tvSimOperator: TextView
     private lateinit var tvSimState: TextView
@@ -143,65 +188,87 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDataState: TextView
     private lateinit var tvDataActivity: TextView
     private lateinit var tvPhoneCount: TextView
-    private lateinit var tvDbm: TextView
-    private lateinit var tvAsu: TextView
-    private lateinit var tvLevel: TextView
-    private lateinit var tvRsrp: TextView
-    private lateinit var tvRsrq: TextView
-    private lateinit var tvSnr: TextView
-    private lateinit var tvRssi: TextView
-    private lateinit var tvServingRat: TextView
-    private lateinit var tvServingPci: TextView
-    private lateinit var tvServingCid: TextView
-    private lateinit var tvServingTac: TextView
-    private lateinit var tvServingEarfcn: TextView
-    private lateinit var tvServingMccMnc: TextView
-    private lateinit var tvServingBandwidth: TextView
-    private lateinit var recyclerCells: RecyclerView
-    private lateinit var tvNoCells: TextView
-    private lateinit var btnLocateTower: MaterialButton
-    private lateinit var tvTowerDistance: TextView
-    private lateinit var tvTowerBearing: TextView
-    private lateinit var tvGpsCoords: TextView
-    private lateinit var etApiKey: TextInputEditText
-    private lateinit var btnSaveKey: MaterialButton
-    private lateinit var llSimList: LinearLayout
-    private lateinit var tvSimCount: TextView
+    private lateinit var tvLiveDown: TextView
+    private lateinit var tvLiveUp: TextView
     private lateinit var btnSpeedTest: MaterialButton
     private lateinit var progressSpeed: LinearProgressIndicator
     private lateinit var tvPing: TextView
     private lateinit var tvDownload: TextView
     private lateinit var tvUpload: TextView
     private lateinit var tvSpeedStatus: TextView
-
-    // ── امکانات حرفه‌ای (نسخهٔ ۱.۳) ──
-    private lateinit var swipeRefresh: SwipeRefreshLayout
-    private lateinit var btnShare: androidx.appcompat.widget.AppCompatImageView
-    private lateinit var tvSignalScore: TextView
-    private lateinit var signalChart: SignalChartView
-    private lateinit var tvDistanceSource: TextView
-    private lateinit var tvDistanceAcc: TextView
-    private lateinit var llAdvanced: LinearLayout
-    private lateinit var tvAdvancedToggle: TextView
-    private lateinit var tvLiveDown: TextView
-    private lateinit var tvLiveUp: TextView
-
-    // ── تاریخچه تست سرعت ──
     private lateinit var historyChart: HistoryChartView
     private lateinit var tvHistoryCount: TextView
     private lateinit var tvHistoryEmpty: TextView
     private lateinit var llHistoryList: LinearLayout
     private lateinit var btnClearHistory: MaterialButton
 
-    // ── اطلاعات دستگاه ──
-    private lateinit var tvDeviceModel: TextView
-    private lateinit var tvDeviceOs: TextView
-    private lateinit var tvDeviceScreen: TextView
-    private lateinit var tvDeviceBattery: TextView
-    private lateinit var tvDeviceUptime: TextView
-    private lateinit var tvDeviceCpu: TextView
+    // شبکه
+    private lateinit var tvServingRat: TextView
+    private lateinit var tvServingMccMnc: TextView
+    private lateinit var tvServingCid: TextView
+    private lateinit var tvServingEnb: TextView
+    private lateinit var tvServingPci: TextView
+    private lateinit var tvServingTac: TextView
+    private lateinit var tvServingEarfcn: TextView
+    private lateinit var tvServingBand: TextView
+    private lateinit var tvServingFreq: TextView
+    private lateinit var tvServingBandwidth: TextView
+    private lateinit var tvServingTa: TextView
+    private lateinit var tvTaDistance: TextView
+    private lateinit var tvServingRsrp: TextView
+    private lateinit var tvServingRsrq: TextView
+    private lateinit var tvServingSinr: TextView
+    private lateinit var tvServingRssi: TextView
+    private lateinit var tvTowerDistance: TextView
+    private lateinit var tvDistanceSource: TextView
+    private lateinit var tvDistanceAcc: TextView
+    private lateinit var btnLocateTower: MaterialButton
+    private lateinit var tvTowerBearing: TextView
+    private lateinit var tvGpsCoords: TextView
+    private lateinit var compassView: CompassView
+    private lateinit var mapView: org.osmdroid.views.MapView
+    private lateinit var towerMap: TowerMapController
+    private lateinit var recyclerCells: RecyclerView
+    private lateinit var tvNoCells: TextView
+    private lateinit var llHandover: LinearLayout
+    private lateinit var tvHandoverEmpty: TextView
+    private lateinit var btnClearHandover: MaterialButton
 
-    private lateinit var historyDb: SpeedTestHistory
+    // سیم‌کارت
+    private lateinit var tvSimCount: TextView
+    private lateinit var tvInspectStatus: TextView
+    private lateinit var llSimList: LinearLayout
+
+    // ابزارها
+    private lateinit var chipPingTargets: ChipGroup
+    private lateinit var btnRunPing: MaterialButton
+    private lateinit var tvPingMin: TextView
+    private lateinit var tvPingAvg: TextView
+    private lateinit var tvPingMax: TextView
+    private lateinit var tvPingJitter: TextView
+    private lateinit var tvPingLoss: TextView
+    private lateinit var tvPingPackets: TextView
+    private lateinit var tvPingMethod: TextView
+    private lateinit var tvPingStatus: TextView
+    private lateinit var btnRunDns: MaterialButton
+    private lateinit var llDnsRows: LinearLayout
+    private lateinit var tvDnsStatus: TextView
+    private lateinit var btnExportCsv: MaterialButton
+    private lateinit var btnExportPdf: MaterialButton
+    private lateinit var btnExportSpeedCsv: MaterialButton
+
+    // تنظیمات
+    private lateinit var toggleTheme: MaterialButtonToggleGroup
+    private lateinit var btnThemeSystem: MaterialButton
+    private lateinit var btnThemeLight: MaterialButton
+    private lateinit var btnThemeDark: MaterialButton
+    private lateinit var swDynamic: SwitchMaterial
+    private lateinit var toggleLang: MaterialButtonToggleGroup
+    private lateinit var btnLangFa: MaterialButton
+    private lateinit var btnLangEn: MaterialButton
+    private lateinit var swMonitor: SwitchMaterial
+    private lateinit var tvAboutVersion: TextView
+    private lateinit var tvAboutRepo: TextView
 
     // ───────────────────────── مجوزها ─────────────────────────
 
@@ -210,29 +277,39 @@ class MainActivity : AppCompatActivity() {
             handlePermissionResult(grants)
         }
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                SignalLogService.start(this)
+                toast(getString(R.string.monitor_started))
+            } else {
+                toast(getString(R.string.monitor_permission_needed))
+            }
+        }
+
     // ───────────────────────── چرخه حیات ─────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // اگر زبان عوض شده باشد، حالت ارقام فوراً به‌روز شود
+        persianDigitsEnabled = Locale.getDefault().language != "en"
+
         telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         subscriptionManager =
             getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         historyDb = SpeedTestHistory.get(this)
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
         bindViews()
-        setupCellsRecyclerView()
+        setupTabs()
         setupButtons()
+        setupPingChips()
+        setupSettingsControls()
 
-        swipeRefresh.setOnRefreshListener {
-            refreshAll()
-            swipeRefresh.isRefreshing = false
-        }
-
-        etApiKey.setText(prefs.getString(KEY_OPENCELLID, "") ?: "")
+        HandoverLog.load(this)
         refreshHistory()
     }
 
@@ -242,27 +319,57 @@ class MainActivity : AppCompatActivity() {
         if (missing.isEmpty()) {
             startAll()
         } else if (!autoPromptedOnce) {
-            // بار اول: دیالوگ مجوز به‌طور خودکار باز می‌شود
             autoPromptedOnce = true
             permissionLauncher.launch(missing.toTypedArray())
         } else {
-            // بارهای بعدی: به‌جای دیالوگ تکراری، کادر راهنمای قابل‌لمس نمایش داده می‌شود
             showPermissionGate(getString(R.string.permission_gate))
         }
+        // سرویس پایش اگر کاربر روشن گذاشته باشد و از UI باز شده باشیم
+        if (AppPrefs.monitorEnabled(this) && !SignalLogService.isRunning) {
+            SignalLogService.start(this)
+        }
+        towerMap.onResume()
+        registerCompass()
     }
 
     override fun onPause() {
         super.onPause()
         stopAll()
+        towerMap.onPause()
+        unregisterCompass()
     }
 
-    // ───────────────────────── راه‌اندازی UI ─────────────────────────
+    // ───────────────────────── اتصال ویوها ─────────────────────────
 
     private fun bindViews() {
         tvPermissionGate = findViewById(R.id.tvPermissionGate)
+        tabLayout = findViewById(R.id.tabLayout)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        btnRefresh = findViewById(R.id.btnRefresh)
+        btnShare = findViewById(R.id.btnShare)
+
+        pageDashboard = findViewById(R.id.pageDashboard)
+        pageNetwork = findViewById(R.id.pageNetwork)
+        pageSim = findViewById(R.id.pageSim)
+        pageTools = findViewById(R.id.pageTools)
+        pageSettings = findViewById(R.id.pageSettings)
+
+        // داشبورد
         gaugeView = findViewById(R.id.gaugeView)
         barsView = findViewById(R.id.barsView)
         chipNetwork = findViewById(R.id.chipNetwork)
+        tvQualityScore = findViewById(R.id.tvQualityScore)
+        tvScoreLabel = findViewById(R.id.tvScoreLabel)
+        tvSignalScore = findViewById(R.id.tvSignalScore)
+        signalChart = findViewById(R.id.signalChart)
+        tvSigStats = findViewById(R.id.tvSigStats)
+        tvDbm = findViewById(R.id.tvDbm)
+        tvAsu = findViewById(R.id.tvAsu)
+        tvLevel = findViewById(R.id.tvLevel)
+        tvRsrp = findViewById(R.id.tvRsrp)
+        tvRsrq = findViewById(R.id.tvRsrq)
+        tvSnr = findViewById(R.id.tvSnr)
+        tvRssi = findViewById(R.id.tvRssi)
         tvOperatorName = findViewById(R.id.tvOperatorName)
         tvSimOperator = findViewById(R.id.tvSimOperator)
         tvSimState = findViewById(R.id.tvSimState)
@@ -271,60 +378,89 @@ class MainActivity : AppCompatActivity() {
         tvDataState = findViewById(R.id.tvDataState)
         tvDataActivity = findViewById(R.id.tvDataActivity)
         tvPhoneCount = findViewById(R.id.tvPhoneCount)
-        tvDbm = findViewById(R.id.tvDbm)
-        tvAsu = findViewById(R.id.tvAsu)
-        tvLevel = findViewById(R.id.tvLevel)
-        tvRsrp = findViewById(R.id.tvRsrp)
-        tvRsrq = findViewById(R.id.tvRsrq)
-        tvSnr = findViewById(R.id.tvSnr)
-        tvRssi = findViewById(R.id.tvRssi)
-        tvServingRat = findViewById(R.id.tvServingRat)
-        tvServingPci = findViewById(R.id.tvServingPci)
-        tvServingCid = findViewById(R.id.tvServingCid)
-        tvServingTac = findViewById(R.id.tvServingTac)
-        tvServingEarfcn = findViewById(R.id.tvServingEarfcn)
-        tvServingMccMnc = findViewById(R.id.tvServingMccMnc)
-        tvServingBandwidth = findViewById(R.id.tvServingBandwidth)
-        recyclerCells = findViewById(R.id.recyclerCells)
-        tvNoCells = findViewById(R.id.tvNoCells)
-        btnLocateTower = findViewById(R.id.btnLocateTower)
-        tvTowerDistance = findViewById(R.id.tvTowerDistance)
-        tvTowerBearing = findViewById(R.id.tvTowerBearing)
-        tvGpsCoords = findViewById(R.id.tvGpsCoords)
-        etApiKey = findViewById(R.id.etApiKey)
-        btnSaveKey = findViewById(R.id.btnSaveKey)
-        llSimList = findViewById(R.id.llSimList)
-        tvSimCount = findViewById(R.id.tvSimCount)
+        tvLiveDown = findViewById(R.id.tvLiveDown)
+        tvLiveUp = findViewById(R.id.tvLiveUp)
         btnSpeedTest = findViewById(R.id.btnSpeedTest)
         progressSpeed = findViewById(R.id.progressSpeed)
         tvPing = findViewById(R.id.tvPing)
         tvDownload = findViewById(R.id.tvDownload)
         tvUpload = findViewById(R.id.tvUpload)
         tvSpeedStatus = findViewById(R.id.tvSpeedStatus)
-
         historyChart = findViewById(R.id.historyChart)
         tvHistoryCount = findViewById(R.id.tvHistoryCount)
         tvHistoryEmpty = findViewById(R.id.tvHistoryEmpty)
         llHistoryList = findViewById(R.id.llHistoryList)
         btnClearHistory = findViewById(R.id.btnClearHistory)
 
-        tvDeviceModel = findViewById(R.id.tvDeviceModel)
-        tvDeviceOs = findViewById(R.id.tvDeviceOs)
-        tvDeviceScreen = findViewById(R.id.tvDeviceScreen)
-        tvDeviceBattery = findViewById(R.id.tvDeviceBattery)
-        tvDeviceUptime = findViewById(R.id.tvDeviceUptime)
-        tvDeviceCpu = findViewById(R.id.tvDeviceCpu)
-
-        swipeRefresh = findViewById(R.id.swipeRefresh)
-        btnShare = findViewById(R.id.btnShare)
-        tvSignalScore = findViewById(R.id.tvSignalScore)
-        signalChart = findViewById(R.id.signalChart)
+        // شبکه
+        tvServingRat = findViewById(R.id.tvServingRat)
+        tvServingMccMnc = findViewById(R.id.tvServingMccMnc)
+        tvServingCid = findViewById(R.id.tvServingCid)
+        tvServingEnb = findViewById(R.id.tvServingEnb)
+        tvServingPci = findViewById(R.id.tvServingPci)
+        tvServingTac = findViewById(R.id.tvServingTac)
+        tvServingEarfcn = findViewById(R.id.tvServingEarfcn)
+        tvServingBand = findViewById(R.id.tvServingBand)
+        tvServingFreq = findViewById(R.id.tvServingFreq)
+        tvServingBandwidth = findViewById(R.id.tvServingBandwidth)
+        tvServingTa = findViewById(R.id.tvServingTa)
+        tvTaDistance = findViewById(R.id.tvTaDistance)
+        tvServingRsrp = findViewById(R.id.tvServingRsrp)
+        tvServingRsrq = findViewById(R.id.tvServingRsrq)
+        tvServingSinr = findViewById(R.id.tvServingSinr)
+        tvServingRssi = findViewById(R.id.tvServingRssi)
+        tvTowerDistance = findViewById(R.id.tvTowerDistance)
         tvDistanceSource = findViewById(R.id.tvDistanceSource)
         tvDistanceAcc = findViewById(R.id.tvDistanceAcc)
-        llAdvanced = findViewById(R.id.llAdvanced)
-        tvAdvancedToggle = findViewById(R.id.tvAdvancedToggle)
-        tvLiveDown = findViewById(R.id.tvLiveDown)
-        tvLiveUp = findViewById(R.id.tvLiveUp)
+        btnLocateTower = findViewById(R.id.btnLocateTower)
+        tvTowerBearing = findViewById(R.id.tvTowerBearing)
+        tvGpsCoords = findViewById(R.id.tvGpsCoords)
+        compassView = findViewById(R.id.compassView)
+        mapView = findViewById(R.id.mapView)
+        towerMap = TowerMapController(mapView)
+        recyclerCells = findViewById(R.id.recyclerCells)
+        tvNoCells = findViewById(R.id.tvNoCells)
+        llHandover = findViewById(R.id.llHandover)
+        tvHandoverEmpty = findViewById(R.id.tvHandoverEmpty)
+        btnClearHandover = findViewById(R.id.btnClearHandover)
+
+        // سیم‌کارت
+        tvSimCount = findViewById(R.id.tvSimCount)
+        tvInspectStatus = findViewById(R.id.tvInspectStatus)
+        llSimList = findViewById(R.id.llSimList)
+
+        // ابزارها
+        chipPingTargets = findViewById(R.id.chipPingTargets)
+        btnRunPing = findViewById(R.id.btnRunPing)
+        tvPingMin = findViewById(R.id.tvPingMin)
+        tvPingAvg = findViewById(R.id.tvPingAvg)
+        tvPingMax = findViewById(R.id.tvPingMax)
+        tvPingJitter = findViewById(R.id.tvPingJitter)
+        tvPingLoss = findViewById(R.id.tvPingLoss)
+        tvPingPackets = findViewById(R.id.tvPingPackets)
+        tvPingMethod = findViewById(R.id.tvPingMethod)
+        tvPingStatus = findViewById(R.id.tvPingStatus)
+        btnRunDns = findViewById(R.id.btnRunDns)
+        llDnsRows = findViewById(R.id.llDnsRows)
+        tvDnsStatus = findViewById(R.id.tvDnsStatus)
+        btnExportCsv = findViewById(R.id.btnExportCsv)
+        btnExportPdf = findViewById(R.id.btnExportPdf)
+        btnExportSpeedCsv = findViewById(R.id.btnExportSpeedCsv)
+
+        // تنظیمات
+        toggleTheme = findViewById(R.id.toggleTheme)
+        btnThemeSystem = findViewById(R.id.btnThemeSystem)
+        btnThemeLight = findViewById(R.id.btnThemeLight)
+        btnThemeDark = findViewById(R.id.btnThemeDark)
+        swDynamic = findViewById(R.id.swDynamic)
+        toggleLang = findViewById(R.id.toggleLang)
+        btnLangFa = findViewById(R.id.btnLangFa)
+        btnLangEn = findViewById(R.id.btnLangEn)
+        swMonitor = findViewById(R.id.swMonitor)
+        tvAboutVersion = findViewById(R.id.tvAboutVersion)
+        tvAboutRepo = findViewById(R.id.tvAboutRepo)
+
+        setupCellsRecyclerView()
     }
 
     private fun setupCellsRecyclerView() {
@@ -334,13 +470,178 @@ class MainActivity : AppCompatActivity() {
         recyclerCells.isNestedScrollingEnabled = false
     }
 
+    // ───────────────────────── تب‌ها و اسکرول ─────────────────────────
+
+    private fun setupTabs() {
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_dashboard))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_network))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_sim))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_tools))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_settings))
+
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                showPage(tab.position)
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+
+            override fun onTabReselected(tab: TabLayout.Tab) {
+                activeScrollView?.smoothScrollTo(0, 0)
+            }
+        })
+        showPage(0)
+    }
+
+    private fun showPage(position: Int) {
+        pageDashboard.visibility = if (position == 0) View.VISIBLE else View.GONE
+        pageNetwork.visibility = if (position == 1) View.VISIBLE else View.GONE
+        pageSim.visibility = if (position == 2) View.VISIBLE else View.GONE
+        pageTools.visibility = if (position == 3) View.VISIBLE else View.GONE
+        pageSettings.visibility = if (position == 4) View.VISIBLE else View.GONE
+        activeScrollView = when (position) {
+            0 -> pageDashboard
+            1 -> pageNetwork
+            2 -> pageSim
+            3 -> pageTools
+            else -> pageSettings
+        }
+        if (position == 1) {
+            // نقشه فقط وقتی تب شبکه باز می‌شود راه‌اندازی/تازه می‌شود
+            towerMap.initialize()
+            towerMap.onResume()
+        }
+    }
+
+    // ───────────────────────── دکمه‌ها ─────────────────────────
+
     private fun setupButtons() {
-        btnSaveKey.setOnClickListener { saveApiKey() }
         btnLocateTower.setOnClickListener { onLocateTowerClicked() }
         btnSpeedTest.setOnClickListener { toggleSpeedTest() }
         btnClearHistory.setOnClickListener { onClearHistoryClicked() }
         btnShare.setOnClickListener { shareDiagnostics() }
-        tvAdvancedToggle.setOnClickListener { toggleAdvanced() }
+        btnClearHandover.setOnClickListener {
+            HandoverLog.clear(this)
+            refreshHandoverList()
+            toast(getString(R.string.handover_cleared))
+        }
+        btnRunPing.setOnClickListener { togglePingTest() }
+        btnRunDns.setOnClickListener { toggleDnsTest() }
+        btnExportCsv.setOnClickListener { exportSignalCsv() }
+        btnExportSpeedCsv.setOnClickListener { exportSpeedCsv() }
+        btnExportPdf.setOnClickListener { exportPdfReport() }
+        tvAboutRepo.setOnClickListener { openRepo() }
+
+        // ═══ رفع باگ «رفرش عمل نمی‌کند» ═══
+        // ۱) دکمهٔ رفرش در سربرگ — همیشه در دسترس
+        btnRefresh.setOnClickListener {
+            swipeRefresh.isRefreshing = true
+            refreshAll()
+        }
+        // ۲) کشیدن به پایین — با تشخیص درست اسکرول صفحهٔ فعال
+        swipeRefresh.setOnRefreshListener { refreshAll() }
+        swipeRefresh.setOnChildScrollUpCallback { _, _ ->
+            (activeScrollView ?: pageDashboard).canScrollVertically(-1) > 0
+        }
+    }
+
+    private fun setupPingChips() {
+        chipPingTargets.check(R.id.chipPingGoogle)
+    }
+
+    private fun selectedPingTarget(): PingTester.Target {
+        return when (chipPingTargets.checkedChipId) {
+            R.id.chipPingCloudflare -> PingTester.TARGETS[1]
+            R.id.chipPingShecan -> PingTester.TARGETS[2]
+            R.id.chipPingBegzar -> PingTester.TARGETS[3]
+            R.id.chipPingLevel3 -> PingTester.TARGETS[4]
+            else -> PingTester.TARGETS[0]
+        }
+    }
+
+    // ───────────────────────── تنظیمات ─────────────────────────
+
+    private fun setupSettingsControls() {
+        // تم
+        when (AppPrefs.themeMode(this)) {
+            1 -> toggleTheme.check(R.id.btnThemeLight)
+            2 -> toggleTheme.check(R.id.btnThemeDark)
+            else -> toggleTheme.check(R.id.btnThemeSystem)
+        }
+        toggleTheme.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val mode = when (checkedId) {
+                R.id.btnThemeLight -> 1
+                R.id.btnThemeDark -> 2
+                else -> 0
+            }
+            AppPrefs.setThemeMode(this, mode)
+            AppCompatDelegate.setDefaultNightMode(
+                when (mode) {
+                    1 -> AppCompatDelegate.MODE_NIGHT_NO
+                    2 -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                }
+            )
+        }
+
+        // رنگ پویا
+        swDynamic.isChecked = AppPrefs.dynamicColor(this)
+        swDynamic.setOnCheckedChangeListener { _, checked ->
+            AppPrefs.setDynamicColor(this, checked)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                toast(getString(R.string.dynamic_color_applied))
+            }
+        }
+
+        // زبان
+        val isEnglish = Locale.getDefault().language == "en"
+        toggleLang.check(if (isEnglish) R.id.btnLangEn else R.id.btnLangFa)
+        toggleLang.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val targetLang = if (checkedId == R.id.btnLangEn) "en" else "fa"
+            if (Locale.getDefault().language != targetLang) {
+                val locales = androidx.core.os.LocaleListCompat.forLanguageTags(targetLang)
+                AppCompatDelegate.setApplicationLocales(locales)
+            }
+        }
+
+        // پایش پس‌زمینه
+        swMonitor.isChecked = AppPrefs.monitorEnabled(this) || SignalLogService.isRunning
+        swMonitor.setOnCheckedChangeListener { _, checked ->
+            AppPrefs.setMonitorEnabled(this, checked)
+            if (checked) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(
+                        this, Manifest.permission.POST_NOTIFICATIONS
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    SignalLogService.start(this)
+                    toast(getString(R.string.monitor_started))
+                }
+            } else {
+                SignalLogService.stop(this)
+                toast(getString(R.string.monitor_stopped))
+            }
+        }
+
+        // درباره
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (t: Throwable) {
+            "—"
+        }
+        tvAboutVersion.text = getString(R.string.about_version_fmt, version)
+    }
+
+    private fun openRepo() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(REPO_URL)))
+        } catch (t: Throwable) {
+            toast(getString(R.string.toast_no_app))
+        }
     }
 
     // ───────────────────────── مجوزها ─────────────────────────
@@ -372,8 +673,6 @@ class MainActivity : AppCompatActivity() {
         when {
             phoneGranted -> {
                 startAll()
-                // اگر موقعیت رد شده باشد، API 30+ لیست سلول‌ها را خالی برمی‌گرداند؛
-                // به‌جای سکوت، راهنمای شفاف نمایش می‌دهیم.
                 if (!locationGranted) {
                     toast(getString(R.string.location_needed_for_cells))
                 }
@@ -388,7 +687,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** نمایش کادر راهنمای مجوزها؛ لمس آن دیالوگ مجوز را دوباره باز می‌کند */
     private fun showPermissionGate(message: String) {
         tvPermissionGate.visibility = View.VISIBLE
         tvPermissionGate.text = message
@@ -408,21 +706,17 @@ class MainActivity : AppCompatActivity() {
         tvPermissionGate.visibility = View.GONE
         tvPermissionGate.setOnClickListener(null)
         refreshTelephonyInfo()
-        refreshDualSim()
+        refreshDualSimCards()
         registerSignalListener()
         startCellPolling()
-        updateNetworkType()
-        refreshDeviceInfo()
         startLiveTraffic()
+        refreshHandoverList()
     }
 
     private fun stopAll() {
         unregisterSignalListener()
         cellPollJob?.cancel()
         cellPollJob = null
-        // توقف کارهای در جریان (تست سرعت / GPS+OpenCelliD) هنگام خروج از صفحه؛
-        // اگر تستی در جریان بود، رابط کاربری هم به حالت آماده بازگردانده می‌شود
-        // تا دکمه «لغو تست» و نوار پیشرفت پس از بازگشت به صفحه گیر نکنند.
         if (speedTestJob?.isActive == true) {
             speedTestJob?.cancel()
             resetSpeedUi()
@@ -435,13 +729,39 @@ class MainActivity : AppCompatActivity() {
             tvTowerBearing.text = "—"
         }
         distanceJob = null
-        // توقف شمارندهٔ ترافیک لحظه‌ای
         if (liveTrafficJob?.isActive == true) {
             liveTrafficJob?.cancel()
             tvLiveDown.text = getString(R.string.speed_na)
             tvLiveUp.text = getString(R.string.speed_na)
         }
         liveTrafficJob = null
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // رفرش سراسری — رفع باگ «رفرش عمل نمی‌کند»:
+    // همهٔ بخش‌ها مجبور به تازه‌سازی می‌شوند، فاصله هم دوباره محاسبه
+    // می‌شود و اسپینر یک لحظه نمایان می‌ماند.
+    // ═══════════════════════════════════════════════════════════════
+    private fun refreshAll() {
+        if (missingPermissions().isNotEmpty()) {
+            showPermissionGate(getString(R.string.permission_gate))
+            swipeRefresh.isRefreshing = false
+            return
+        }
+        lastAutoDistCellKey = null
+        refreshTelephonyInfo()
+        refreshDualSimCards()
+        registerSignalListener()
+        refreshCellInfo()
+        refreshDeviceInfo()
+        refreshHistory()
+        refreshHandoverList()
+        if (distanceJob?.isActive != true) {
+            computeTowerDistance()
+        }
+        swipeRefresh.postDelayed({
+            swipeRefresh.isRefreshing = false
+        }, 700)
     }
 
     // ───────────────────────── اطلاعات تلفن / سیم‌کارت ─────────────────────────
@@ -471,11 +791,9 @@ class MainActivity : AppCompatActivity() {
             tvCountryIso.text = telephonyManager.networkCountryIso
                 .uppercase(Locale.US)
                 .ifBlank { "—" }
-            tvRoaming.text = if (telephonyManager.isNetworkRoaming) {
-                getString(R.string.roaming_on)
-            } else {
-                getString(R.string.roaming_off)
-            }
+            tvRoaming.text = getString(
+                if (telephonyManager.isNetworkRoaming) R.string.roaming_on else R.string.roaming_off
+            )
             tvDataState.text = dataStateText(telephonyManager.dataState)
             tvDataActivity.text = dataActivityText(telephonyManager.dataActivity)
             val modems = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -484,52 +802,52 @@ class MainActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 telephonyManager.phoneCount
             }
-            tvPhoneCount.text = modems.toPersianDigits()
+            tvPhoneCount.text = modems.toDigits()
         } catch (e: SecurityException) {
             tvOperatorName.text = getString(R.string.sim_no_permission)
         }
     }
 
     private fun simStateText(state: Int): String = when (state) {
-        TelephonyManager.SIM_STATE_ABSENT -> "سیم‌کارت موجود نیست"
-        TelephonyManager.SIM_STATE_PIN_REQUIRED -> "قفل با PIN"
-        TelephonyManager.SIM_STATE_PUK_REQUIRED -> "قفل با PUK"
-        TelephonyManager.SIM_STATE_NETWORK_LOCKED -> "قفل شبکه"
-        TelephonyManager.SIM_STATE_READY -> "آماده"
-        TelephonyManager.SIM_STATE_NOT_READY -> "غیرفعال"
-        TelephonyManager.SIM_STATE_PERM_DISABLED -> "غیرفعال دائمی"
-        TelephonyManager.SIM_STATE_CARD_IO_ERROR -> "خطای سخت‌افزاری سیم‌کارت"
-        TelephonyManager.SIM_STATE_CARD_RESTRICTED -> "محدودشده"
-        else -> "نامشخص"
+        TelephonyManager.SIM_STATE_ABSENT -> getString(R.string.sim_state_absent)
+        TelephonyManager.SIM_STATE_PIN_REQUIRED -> getString(R.string.sim_state_pin)
+        TelephonyManager.SIM_STATE_PUK_REQUIRED -> getString(R.string.sim_state_puk)
+        TelephonyManager.SIM_STATE_NETWORK_LOCKED -> getString(R.string.sim_state_network_locked)
+        TelephonyManager.SIM_STATE_READY -> getString(R.string.sim_state_ready)
+        TelephonyManager.SIM_STATE_NOT_READY -> getString(R.string.sim_state_not_ready)
+        TelephonyManager.SIM_STATE_PERM_DISABLED -> getString(R.string.sim_state_perm_disabled)
+        TelephonyManager.SIM_STATE_CARD_IO_ERROR -> getString(R.string.sim_state_card_io)
+        TelephonyManager.SIM_STATE_CARD_RESTRICTED -> getString(R.string.sim_state_restricted)
+        else -> getString(R.string.unknown)
     }
 
     private fun dataStateText(state: Int): String = when (state) {
-        TelephonyManager.DATA_CONNECTED -> "متصل"
-        TelephonyManager.DATA_CONNECTING -> "در حال اتصال"
-        TelephonyManager.DATA_DISCONNECTED -> "قطع"
-        TelephonyManager.DATA_SUSPENDED -> "معلق"
-        else -> "نامشخص"
+        TelephonyManager.DATA_CONNECTED -> getString(R.string.data_state_connected)
+        TelephonyManager.DATA_CONNECTING -> getString(R.string.data_state_connecting)
+        TelephonyManager.DATA_DISCONNECTED -> getString(R.string.data_state_disconnected)
+        TelephonyManager.DATA_SUSPENDED -> getString(R.string.data_state_suspended)
+        else -> getString(R.string.unknown)
     }
 
     private fun dataActivityText(activity: Int): String = when (activity) {
-        TelephonyManager.DATA_ACTIVITY_NONE -> "بدون ترافیک"
-        TelephonyManager.DATA_ACTIVITY_IN -> "دریافت داده"
-        TelephonyManager.DATA_ACTIVITY_OUT -> "ارسال داده"
-        TelephonyManager.DATA_ACTIVITY_INOUT -> "ارسال و دریافت"
-        TelephonyManager.DATA_ACTIVITY_DORMANT -> "خوابیده (Dormant)"
-        else -> "نامشخص"
+        TelephonyManager.DATA_ACTIVITY_NONE -> getString(R.string.data_activity_none)
+        TelephonyManager.DATA_ACTIVITY_IN -> getString(R.string.data_activity_in)
+        TelephonyManager.DATA_ACTIVITY_OUT -> getString(R.string.data_activity_out)
+        TelephonyManager.DATA_ACTIVITY_INOUT -> getString(R.string.data_activity_inout)
+        TelephonyManager.DATA_ACTIVITY_DORMANT -> getString(R.string.data_activity_dormant)
+        else -> getString(R.string.unknown)
     }
 
     private fun levelText(level: Int): String = when (level) {
-        4 -> "عالی"
-        3 -> "خوب"
-        2 -> "متوسط"
-        1 -> "ضعیف"
-        0 -> "خیلی ضعیف"
-        else -> "نامشخص"
+        4 -> getString(R.string.level_excellent)
+        3 -> getString(R.string.level_good)
+        2 -> getString(R.string.level_moderate)
+        1 -> getString(R.string.level_weak)
+        0 -> getString(R.string.level_very_weak)
+        else -> getString(R.string.unknown)
     }
 
-    // ───────────────────────── تشخیص نوع / نسل شبکه ─────────────────────────
+    // ───────────────────────── نوع / نسل شبکه ─────────────────────────
 
     private fun currentNetworkType(tm: TelephonyManager): Int = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -544,7 +862,7 @@ class MainActivity : AppCompatActivity() {
         TelephonyManager.NETWORK_TYPE_UNKNOWN
     }
 
-    /** خروجی: برچسب فارسی کامل + رشته نسل (برای نشانِ رنگی سلول‌ها) */
+    /** خروجی: برچسب کامل نسل + رشتهٔ نسل کوتاه */
     private fun networkTypeInfo(type: Int): Pair<String, String> = when (type) {
         TelephonyManager.NETWORK_TYPE_GPRS -> "2G – GPRS" to "2G"
         TelephonyManager.NETWORK_TYPE_EDGE -> "2G – EDGE" to "2G"
@@ -564,8 +882,8 @@ class MainActivity : AppCompatActivity() {
         TelephonyManager.NETWORK_TYPE_LTE -> "4G – LTE / LTE-A" to "4G"
         TelephonyManager.NETWORK_TYPE_NR -> "5G – NR" to "5G"
         TelephonyManager.NETWORK_TYPE_IWLAN -> "IWLAN" to "WLAN"
-        TelephonyManager.NETWORK_TYPE_UNKNOWN -> "نامشخص" to "—"
-        else -> "نوع ناشناخته (" + type.toString().toPersianDigits() + ")" to "—"
+        TelephonyManager.NETWORK_TYPE_UNKNOWN -> getString(R.string.unknown) to "—"
+        else -> getString(R.string.unknown_type_fmt, type) to "—"
     }
 
     private fun updateNetworkType() {
@@ -573,24 +891,22 @@ class MainActivity : AppCompatActivity() {
             chipNetwork.text = "—"
             return
         }
-        val (label, _) = networkTypeInfo(currentNetworkType(telephonyManager))
+        val (label, _) = networkTypeInfo(currentNetworkType(activeTelephonyManager()))
         chipNetwork.text = label
+        SignalState.netLabel = label
     }
 
-    // ───────────────────────── شنونده قدرت سیگنال ─────────────────────────
+    // ───────────────────────── شنوندهٔ قدرت سیگنال ─────────────────────────
 
     private fun registerSignalListener() {
         if (!hasPhonePermission()) return
-        // جلوگیری از ثبت تکراری کال‌بک (نشت حافظه) در جریان onResume مجدد
         unregisterSignalListener()
 
-        // توجه: در SDKهای اخیر، TelephonyCallback.SignalStrengthListener از سطح API عمومی
-        // حذف شده است؛ بنابراین در همهٔ نسخه‌ها از PhoneStateListener (منسوخ‌شده اما
-        // همچنان موجود در SDK و کارا روی دستگاه‌ها) استفاده می‌شود.
+        // PhoneStateListener در همهٔ نسخه‌ها کارا است (TelephonyCallback در برخی
+        // SDKهای اخیر حذف شده است)
         @Suppress("DEPRECATION")
         val listener = object : PhoneStateListener() {
             override fun onSignalStrengthsChanged(signalStrength: SignalStrength?) {
-                // runCatching: برخی سازندگان SignalStrength ناقص می‌دهند؛ هیچ‌گاه کرش نکنیم
                 signalStrength?.let { runCatching { onSignalUpdated(it) } }
             }
         }
@@ -608,22 +924,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onSignalUpdated(ss: SignalStrength) {
-        // در SDKهای اخیر SignalStrength.getDbm()/getAsuLevel() از سطح API عمومی حذف شده‌اند؛
-        // dBm و ASU از cellSignalStrengths (API 29+) استخراج می‌شوند و در API 26-28 از فرمول GSM قدیمی.
-        // برخی سازندگان cellSignalStrengths خالی برمی‌گردانند؛ در این حالت نیز از فرمول قدیمی استفاده می‌کنیم.
-        val dbmRaw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ss.cellSignalStrengths.firstNotNullOfOrNull { css ->
-                css.dbm.takeIf { it != Int.MAX_VALUE && it != 0 }
-            } ?: legacyGsmDbm(ss)
-        } else {
-            @Suppress("DEPRECATION")
-            legacyGsmDbm(ss)
-        }
-        val dbm = dbmRaw.takeIf { it != Int.MAX_VALUE && it != 0 }
+        val dbm = SignalDbmExtractor.extract(ss)
         lastDbm = dbm
 
         dbm?.let { gaugeView.setDbm(it) }
-        // SignalStrength.getLevel از API ۲۳ در دسترس است؛ روی اندروید ۵ از dBm تخمین زده می‌شود
         val level = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             ss.level
         } else {
@@ -634,84 +938,87 @@ class MainActivity : AppCompatActivity() {
         tvDbm.text = formatDbmOrNull(dbm)
         tvLevel.text = levelText(level)
 
-        val asu: Int? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ss.cellSignalStrengths.firstNotNullOfOrNull { it.asuLevel?.takeIf { v -> v in 0..999 } }
-        } else null
-        tvAsu.text = if (asu != null && asu in 0..999) asu.toPersianDigits() else "—"
-
         var rsrp: Int? = null
         var rsrq: Int? = null
         var snr: Int? = null
         var rssi: Int? = null
+        var asu: Int? = null
 
-        // SignalStrength.cellSignalStrengths از API 29 در دسترس است
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             for (css in ss.cellSignalStrengths) {
                 when (css) {
-                    is CellSignalStrengthLte -> {
+                    is android.telephony.CellSignalStrengthLte -> {
                         rsrp = validSignal(css.rsrp) ?: rsrp
                         rsrq = validSignal(css.rsrq) ?: rsrq
                         rssi = validSignal(css.rssi) ?: rssi
                         snr = validSignal(css.rssnr) ?: snr
                     }
-                    is CellSignalStrengthNr -> {
+                    is android.telephony.CellSignalStrengthNr -> {
                         rsrp = validSignal(css.ssRsrp) ?: rsrp
                         rsrq = validSignal(css.ssRsrq) ?: rsrq
                         snr = validSignal(css.ssSinr) ?: snr
                     }
                 }
+                val a = runCatching { css.asuLevel }.getOrNull()
+                if (asu == null && a != null && a in 0..999) asu = a
             }
         }
 
         tvRsrp.text = formatDbmOrNull(rsrp)
-        tvRsrq.text = rsrq?.let { it.toPersianDigits() + " dB" } ?: "—"
-        tvSnr.text = snr?.let { it.toPersianDigits() + " dB" } ?: "—"
+        tvRsrq.text = rsrq?.let { it.toDigits() + " dB" } ?: "—"
+        tvSnr.text = snr?.let { it.toDigits() + " dB" } ?: "—"
         tvRssi.text = formatDbmOrNull(rssi)
+        tvAsu.text = asu?.let { it.toDigits() } ?: "—"
 
-        // نمودار زندهٔ سیگنال + امتیاز کیفی
         lastRsrpVal = rsrp
         signalChart.addSample(dbm)
+        addDbmSample(dbm)
         updateQualityScore(dbm)
+
+        // وضعیت اشتراکی برای ویجت/کاشی/سرویس
+        SignalState.dbm = dbm
+        SignalState.updatedAtMs = System.currentTimeMillis()
+        SignalWidgetProvider.pushUpdate(applicationContext)
     }
 
-    /** امتیاز کیفی ۰ تا ۱۰۰ از dBm/RSRP + برچسب فارسی و رنگ */
-    private fun updateQualityScore(dbm: Int?) {
-        val gen = lastServingGeneration
-        val raw: Double = when {
-            lastRsrpVal != null && (gen == "4G" || gen == "5G") -> (lastRsrpVal!! + 120) * 100.0 / 50.0
-            dbm != null -> (dbm + 113) * 100.0 / 60.0
-            else -> -1.0
-        }
-        if (raw < 0) {
-            tvSignalScore.text = "—"
-            return
-        }
-        val score = raw.toInt().coerceIn(0, 100)
-        val label = when {
-            score >= 80 -> "عالی"
-            score >= 60 -> "خوب"
-            score >= 40 -> "متوسط"
-            score >= 20 -> "ضعیف"
-            else -> "خیلی ضعیف"
-        }
-        tvSignalScore.text =
-            getString(R.string.score_fmt, score.toString().toPersianDigits()) + " — " + label
-        tvSignalScore.setTextColor(
-            ContextCompat.getColor(
-                this,
-                when {
-                    score >= 60 -> R.color.sig_good
-                    score >= 40 -> R.color.sig_mid
-                    else -> R.color.sig_bad
-                }
-            )
+    private fun addDbmSample(dbm: Int?) {
+        if (dbm == null) return
+        dbmSamples.addLast(dbm)
+        while (dbmSamples.size > 60) dbmSamples.removeFirst()
+        val avg = dbmSamples.average()
+        val mn = dbmSamples.min()
+        val mx = dbmSamples.max()
+        tvSigStats.text = getString(
+            R.string.sig_stats_fmt,
+            formatNumber1f(avg),
+            formatNumber1f(mn.toDouble()),
+            formatNumber1f(mx.toDouble())
         )
     }
 
-    /** مقادیر نامعتبر (Integer.MAX_VALUE) را حذف می‌کند */
+    /** امتیاز ترکیبی کیفیت (سیگنال + پینگ + سرعت) */
+    private fun updateQualityScore(dbm: Int?) {
+        val score = NetworkQuality.score(
+            dbm = dbm ?: lastDbm,
+            rsrp = lastRsrpVal,
+            pingMs = lastPingMs,
+            jitterMs = lastJitterMs,
+            downMbps = lastDownMbps,
+            upMbps = lastUpMbps
+        )
+        val label = NetworkQuality.label(this, score)
+        tvQualityScore.text = score.toString().toDigits()
+        tvScoreLabel.text = label
+        val color = ContextCompat.getColor(this, NetworkQuality.colorRes(score))
+        tvScoreLabel.setTextColor(color)
+        tvQualityScore.setTextColor(color)
+        tvSignalScore.text =
+            getString(R.string.score_fmt, score.toString().toDigits()) + " — " + label
+        tvSignalScore.setTextColor(color)
+    }
+
     private fun validSignal(v: Int): Int? = v.takeIf { it != Int.MAX_VALUE }
 
-    /** تخمین سطح ۰ تا ۴ از dBm برای اندروید ۵ و ۶ که getLevel ندارند */
     private fun levelFromDbm(dbm: Int?): Int = when {
         dbm == null -> -1
         dbm >= -85 -> 4
@@ -721,22 +1028,10 @@ class MainActivity : AppCompatActivity() {
         else -> 0
     }
 
-    /**
-     * محاسبهٔ قدیمی dBm برای اندروید ۵ تا ۱۰ (API 21-28) که getDbm در دسترس نیست:
-     * فرمول استاندارد GSM: dBm = -113 + 2 × ASU
-     * توجه: SignalStrength.isGsm فقط از API ۲۶ هست؛ به‌جای آن بازهٔ ASU بررسی می‌شود
-     * (روی دستگاه‌های CDMA مقدار ۹۹ برمی‌گردد که نامعتبر است و حذف می‌شود).
-     */
-    @Suppress("DEPRECATION")
-    private fun legacyGsmDbm(ss: SignalStrength): Int {
-        val asu = ss.gsmSignalStrength
-        return if (asu in 1..99) asu * 2 - 113 else Int.MAX_VALUE
-    }
-
     private fun formatDbmOrNull(v: Int?): String =
-        v?.let { it.toString().toPersianDigits() + " dBm" } ?: "—"
+        v?.let { it.toString().toDigits() + " dBm" } ?: "—"
 
-    // ───────────────────────── پایش سلول‌ها (هر ۳ ثانیه) ─────────────────────────
+    // ───────────────────────── پایش دوره‌ای سلول‌ها ─────────────────────────
 
     private fun startCellPolling() {
         cellPollJob?.cancel()
@@ -745,49 +1040,64 @@ class MainActivity : AppCompatActivity() {
             while (isActive) {
                 refreshCellInfo()
                 updateNetworkType()
+                refreshSimLiveValues()
                 refreshDeviceInfo()
                 delay(CELL_POLL_INTERVAL_MS)
             }
         }
     }
 
+    /**
+     * TelephonyManager فعال: اگر کاربر «نمایش دکل این سیم» را زده باشد،
+     * همان سابسکریپشن، وگرنه پیش‌فرض — رفع باگ سیم‌کارت دوم.
+     */
+    private fun activeTelephonyManager(): TelephonyManager {
+        val subId = inspectSubId
+        if (subId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val holder = simHolders.firstOrNull { it.sub.subscriptionId == subId }
+            if (holder?.subTm != null) return holder.subTm!!
+        }
+        return telephonyManager
+    }
+
     private fun refreshCellInfo() {
         if (!hasPhonePermission()) return
+        val tm = activeTelephonyManager()
+        val fallbackOperator = try {
+            tm.networkOperator
+        } catch (e: SecurityException) {
+            ""
+        }
 
-        val rows = mutableListOf<CellRow>()
-        var servingNumeric: NumericServing? = null
-
+        val specs = mutableListOf<CellSpec>()
         val all: List<CellInfo>? = try {
             @Suppress("DEPRECATION")
-            telephonyManager.allCellInfo
+            tm.allCellInfo
         } catch (e: SecurityException) {
             null
         } catch (e: Exception) {
             null
         }
-
         if (!all.isNullOrEmpty()) {
             for (info in all) {
-                try {
-                    parseCellInfo(info)?.let { rows.add(it) }
-                    if (info.isRegistered) {
-                        servingNumeric = extractNumeric(info) ?: servingNumeric
-                    }
-                } catch (t: Throwable) {
-                    // بعضی سازندگان CellInfo ناقص برمی‌گردانند؛ این سلول نادیده گرفته می‌شود
-                }
+                CellSpecParser.parse(info, fallbackOperator)?.let { specs.add(it) }
             }
         }
 
-        if (rows.isEmpty()) {
-            // جایگزین GsmCellLocation (که از SDK حذف شده): از آخرین قدرت سیگنالِ شنیده‌شده
-            // یک ردیف عمومی می‌سازیم تا لیست هرگز خالی نماند؛ شناسهٔ دقیق دکل نیازمند
-            // getAllCellInfo کارا است که برخی سازندگان فقط با GPS روشن آن را می‌دهند.
-            lastDbm?.let {
-                rows.add(
+        // تشخیص جابجایی دکل (Handover)
+        val servingNow = specs.firstOrNull { it.registered } ?: specs.firstOrNull()
+        detectHandover(servingNow)
+
+        val rows: MutableList<CellRow> = if (specs.isNotEmpty()) {
+            specs.map { rowOf(it) }.toMutableList()
+        } else {
+            // جایگزین: فقط قدرت سیگنال در دسترس است
+            listOfNotNull(
+                lastDbm?.let {
+                    val info = networkTypeInfo(currentNetworkType(tm))
                     CellRow(
-                        rat = networkTypeInfo(currentNetworkType(telephonyManager)).first,
-                        generation = "",
+                        rat = info.first,
+                        generation = if (info.second == "—") "" else info.second,
                         pciOrPsc = "—",
                         cidOrNci = "—",
                         tacOrLac = "—",
@@ -795,15 +1105,15 @@ class MainActivity : AppCompatActivity() {
                         dbm = it,
                         registered = true
                     )
-                )
-            }
+                }
+            ).toMutableList()
         }
-        // در حالت جایگزین، نسل شبکه را از نوع فعلی شبکه پر می‌کنیم تا نشان خالی نماند
         if (rows.size == 1 && rows[0].generation.isBlank()) {
-            rows[0] = rows[0].copy(generation = networkTypeInfo(currentNetworkType(telephonyManager)).second)
+            rows[0] = rows[0].copy(
+                generation = networkTypeInfo(currentNetworkType(tm)).second
+            )
         }
 
-        // فاصله محاسبه‌شده (در صورت وجود) به ردیف سروینگ اعمال می‌شود
         val dist = lastDistanceText
         val finalRows = if (dist == null) {
             rows
@@ -814,244 +1124,116 @@ class MainActivity : AppCompatActivity() {
         cellAdapter.submit(finalRows)
         tvNoCells.visibility = if (finalRows.isEmpty()) View.VISIBLE else View.GONE
 
-        val serving = finalRows.firstOrNull { it.registered } ?: finalRows.firstOrNull()
-        if (serving != null) {
-            updateServingTowerCard(serving)
+        if (servingNow != null) {
+            updateServingSpecs(servingNow)
         }
 
-        numericServing = servingNumeric ?: numericServing
-        updateMccMncRow()
-
-        // محاسبهٔ خودکار فاصله هنگام تغییر دکل متصل (بدون نیاز به لمس دکمه)
         maybeAutoDistance()
     }
 
-    private fun parseCellInfo(info: CellInfo): CellRow? {
-        return when (info) {
-            is CellInfoLte -> {
-                val id = info.cellIdentity
-                val sig = info.cellSignalStrength
-                CellRow(
-                    rat = "LTE",
-                    generation = "4G",
-                    pciOrPsc = fmtId(id.pci),
-                    cidOrNci = fmtId(id.ci),
-                    tacOrLac = fmtId(id.tac),
-                    earfcnOrArfcn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        fmtId(id.earfcn)
-                    } else {
-                        "—"
-                    },
-                    dbm = validSignal(sig.dbm),
-                    registered = info.isRegistered
-                )
+    private fun rowOf(spec: CellSpec): CellRow = CellRow(
+        rat = spec.rat,
+        generation = spec.generation,
+        pciOrPsc = spec.pci?.toDigits() ?: "—",
+        cidOrNci = spec.cid?.toDigits() ?: "—",
+        tacOrLac = spec.tac?.toDigits() ?: "—",
+        earfcnOrArfcn = spec.earfcn?.toDigits() ?: "—",
+        dbm = spec.dbm,
+        registered = spec.registered,
+        distanceText = "—",
+        bandText = spec.bandLabel ?: "—"
+    )
+
+    /** پرکردن کارت «مشخصات کامل ارتباطات» از CellSpec */
+    private fun updateServingSpecs(spec: CellSpec) {
+        lastServingSpec = spec
+        tvServingRat.text = spec.generation + " – " + spec.rat
+        tvServingPci.text = spec.pci?.toDigits() ?: "—"
+        tvServingCid.text = spec.cid?.toDigits() ?: "—"
+        tvServingEnb.text = spec.enbId?.toDigits() ?: "—"
+        tvServingTac.text = spec.tac?.toDigits() ?: "—"
+        tvServingEarfcn.text = spec.earfcn?.toDigits() ?: "—"
+        tvServingBand.text = spec.bandLabel?.toDigits() ?: "—"
+        tvServingFreq.text = spec.freqMHz?.let {
+            getString(R.string.freq_fmt, formatNumber1f(it))
+        } ?: "—"
+        tvServingBandwidth.text = spec.bandwidthKhz?.let {
+            if (it > 0) {
+                val mhz = it / 1000.0
+                formatNumber1f(mhz) + " " + getString(R.string.unit_mhz)
+            } else {
+                "—"
             }
-            is CellInfoWcdma -> {
-                val id = info.cellIdentity
-                val sig = info.cellSignalStrength
-                CellRow(
-                    rat = "UMTS",
-                    generation = "3G",
-                    pciOrPsc = fmtId(id.psc),
-                    cidOrNci = fmtId(id.cid),
-                    tacOrLac = fmtId(id.lac),
-                    earfcnOrArfcn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        fmtId(id.uarfcn)
-                    } else {
-                        "—"
-                    },
-                    dbm = validSignal(sig.dbm),
-                    registered = info.isRegistered
-                )
+        } ?: "—"
+        tvServingTa.text = spec.timingAdvance?.toDigits() ?: "—"
+        val taDist = CellSpecParser.taDistanceMeters(spec.timingAdvance)
+        tvTaDistance.text = taDist?.let {
+            getString(R.string.ta_dist_fmt, formatDistance(it))
+        } ?: "—"
+        tvServingRsrp.text = formatDbmOrNull(spec.rsrp ?: lastRsrpVal)
+        tvServingRsrq.text = spec.rsrq?.let { it.toDigits() + " dB" } ?: "—"
+        tvServingSinr.text = spec.sinr?.let { it.toDigits() + " dB" } ?: "—"
+        tvServingRssi.text = formatDbmOrNull(spec.rssi)
+
+        // MCC/MNC
+        val mccMnc = if (!spec.mcc.isNullOrBlank() && !spec.mnc.isNullOrBlank()) {
+            spec.mcc + " – " + spec.mnc
+        } else {
+            val op = try {
+                activeTelephonyManager().networkOperator
+            } catch (e: SecurityException) {
+                ""
             }
-            is CellInfoGsm -> {
-                val id = info.cellIdentity
-                val sig = info.cellSignalStrength
-                val bsic = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) id.bsic else -1
-                CellRow(
-                    rat = "GSM",
-                    generation = "2G",
-                    pciOrPsc = "BSIC " + fmtId(bsic),
-                    cidOrNci = fmtId(id.cid),
-                    tacOrLac = fmtId(id.lac),
-                    earfcnOrArfcn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        fmtId(id.arfcn)
-                    } else {
-                        "—"
-                    },
-                    dbm = validSignal(sig.dbm),
-                    registered = info.isRegistered
-                )
-            }
-            is CellInfoCdma -> {
-                val id = info.cellIdentity
-                val sig = info.cellSignalStrength
-                CellRow(
-                    rat = "CDMA",
-                    generation = "3G",
-                    pciOrPsc = "SID " + fmtId(id.systemId),
-                    cidOrNci = fmtId(id.basestationId),
-                    tacOrLac = "NID " + fmtId(id.networkId),
-                    earfcnOrArfcn = "—",
-                    dbm = validSignal(sig.dbm),
-                    registered = info.isRegistered
-                )
-            }
-            else -> {
-                // CellInfoNr فقط از API 29 موجود است؛ چک نسخه قبل از instanceof
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is CellInfoNr) {
-                    val sig = info.cellSignalStrength
-                    // شناسه‌های دکل NR (pci/nci/tac/nrarfcn) در SDKهای اخیر حذف شده‌اند — فقط قدرت سیگنال در دسترس است
-                    CellRow(
-                        rat = "NR",
-                        generation = "5G",
-                        pciOrPsc = "—",
-                        cidOrNci = "—",
-                        tacOrLac = "—",
-                        earfcnOrArfcn = "—",
-                        dbm = validSignal(sig.dbm),
-                        registered = info.isRegistered
+            if (op.length >= 5) op.substring(0, 3) + " – " + op.substring(3) else null
+        }
+        tvServingMccMnc.text = mccMnc?.toDigits() ?: "—"
+    }
+
+    /** تشخیص و ثبت جابجایی دکل */
+    private fun detectHandover(serving: CellSpec?) {
+        if (serving == null || !serving.registered) return
+        val key = serving.cellKey
+        val previous = lastServingSpec?.cellKey
+        if (previous != null && previous != key) {
+            HandoverLog.record(this, previous, key)
+            refreshHandoverList()
+        }
+        lastServingSpec = serving
+    }
+
+    private fun refreshHandoverList() {
+        val events = HandoverLog.recent(12)
+        tvHandoverEmpty.visibility = if (events.isEmpty()) View.VISIBLE else View.GONE
+        llHandover.removeAllViews()
+        for (e in events) {
+            llHandover.addView(
+                makeInfoRow(
+                    getString(
+                        R.string.handover_fmt,
+                        JalaliDate.formatTimestamp(e.timestampMs),
+                        e.fromCell,
+                        e.toCell
                     )
-                } else {
-                    null
-                }
-            }
+                )
+            )
         }
     }
 
-    /** استخراج مقادیر عددی سلول سروینگ برای پرس‌وجوی OpenCelliD */
-    private fun extractNumeric(info: CellInfo): NumericServing? {
-        return when (info) {
-            is CellInfoLte -> {
-                val id = info.cellIdentity
-                val (mcc, mnc) = idStrings(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) id.mccString else null,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) id.mncString else null
-                )
-                NumericServing(
-                    cid = id.ci.takeIf { it != Int.MAX_VALUE },
-                    lac = id.tac.takeIf { it != Int.MAX_VALUE },
-                    mcc = mcc,
-                    mnc = mnc,
-                    radio = "lte",
-                    bandwidthMhz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        id.bandwidth.takeIf { it != Int.MAX_VALUE }
-                    } else {
-                        null
-                    }
-                )
-            }
-            is CellInfoWcdma -> {
-                val id = info.cellIdentity
-                val (mcc, mnc) = idStrings(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) id.mccString else null,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) id.mncString else null
-                )
-                NumericServing(
-                    cid = id.cid.takeIf { it != Int.MAX_VALUE },
-                    lac = id.lac.takeIf { it != Int.MAX_VALUE },
-                    mcc = mcc,
-                    mnc = mnc,
-                    radio = "wcdma"
-                )
-            }
-            is CellInfoGsm -> {
-                val id = info.cellIdentity
-                val (mcc, mnc) = idStrings(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) id.mccString else null,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) id.mncString else null
-                )
-                NumericServing(
-                    cid = id.cid.takeIf { it != Int.MAX_VALUE },
-                    lac = id.lac.takeIf { it != Int.MAX_VALUE },
-                    mcc = mcc,
-                    mnc = mnc,
-                    radio = "gsm"
-                )
-            }
-            is CellInfoCdma -> {
-                val id = info.cellIdentity
-                NumericServing(
-                    cid = id.basestationId.takeIf { it != Int.MAX_VALUE && it != -1 },
-                    lac = id.networkId.takeIf { it != Int.MAX_VALUE && it != -1 },
-                    mcc = null,
-                    mnc = null,
-                    radio = "cdma"
-                )
-            }
-            else -> null
-        }
-    }
+    // ───────────────────────── سیم‌کارت‌ها (رفع باگ سیم دوم) ─────────────────────────
 
-    /** MCC/MNC را از CellIdentity می‌گیرد و در نبود آن از networkOperator */
-    private fun idStrings(mccFromId: String?, mncFromId: String?): Pair<String?, String?> {
-        if (!mccFromId.isNullOrBlank() && !mncFromId.isNullOrBlank()) {
-            return mccFromId to mncFromId
-        }
-        val op = try {
-            telephonyManager.networkOperator
-        } catch (e: SecurityException) {
-            ""
-        }
-        return if (op.length >= 5) {
-            op.substring(0, 3) to op.substring(3)
-        } else {
-            mccFromId to mncFromId
-        }
-    }
-
-    private fun fmtId(v: Int): String =
-        if (v == Int.MAX_VALUE || v == -1) "—" else v.toPersianDigits()
-
-    private fun fmtId(v: Long): String =
-        if (v == Long.MAX_VALUE || v == -1L) "—" else v.toPersianDigits()
-
-    private fun updateServingTowerCard(row: CellRow) {
-        lastServingGeneration = row.generation
-        tvServingRat.text = if (row.generation.isBlank()) {
-            row.rat
-        } else {
-            row.generation + " – " + row.rat
-        }
-        tvServingPci.text = row.pciOrPsc
-        tvServingCid.text = row.cidOrNci
-        tvServingTac.text = row.tacOrLac
-        tvServingEarfcn.text = row.earfcnOrArfcn
-        updateBandwidthRow()
-    }
-
-    private fun updateMccMncRow() {
-        val op = try {
-            telephonyManager.networkOperator
-        } catch (e: SecurityException) {
-            ""
-        }
-        tvServingMccMnc.text = if (op.length >= 5) {
-            (op.substring(0, 3) + " – " + op.substring(3)).toPersianDigits()
-        } else {
-            "—"
-        }
-    }
-
-    private fun updateBandwidthRow() {
-        tvServingBandwidth.text = numericServing?.bandwidthMhz
-            ?.let { it.toPersianDigits() + " مگاهرتز" }
-            ?: "—"
-    }
-
-    // ───────────────────────── دو سیم‌کارت (Dual SIM) ─────────────────────────
-
-    private fun refreshDualSim() {
+    private fun refreshDualSimCards() {
         llSimList.removeAllViews()
-        // SubscriptionManager.activeSubscriptionInfoList از API ۲۲ در دسترس است
+        simHolders.clear()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP_MR1) {
             tvSimCount.text = "—"
             llSimList.addView(makeInfoRow(getString(R.string.sim_requires_api22)))
+            tvInspectStatus.text = ""
             return
         }
         if (!hasPhonePermission()) {
             tvSimCount.text = "—"
             llSimList.addView(makeInfoRow(getString(R.string.sim_no_permission)))
+            tvInspectStatus.text = ""
             return
         }
         val subs: List<SubscriptionInfo>? = try {
@@ -1060,13 +1242,14 @@ class MainActivity : AppCompatActivity() {
             null
         }
         if (subs.isNullOrEmpty()) {
-            tvSimCount.text = getString(R.string.sim_count_fmt, 0).toPersianDigits()
+            tvSimCount.text = getString(R.string.sim_count_fmt, 0).toDigits()
             llSimList.addView(makeInfoRow(getString(R.string.sim_none)))
+            tvInspectStatus.text = ""
             return
         }
-        tvSimCount.text = getString(R.string.sim_count_fmt, subs.size).toPersianDigits()
-        for (sub in subs) {
-            // createForSubscriptionId از API ۲۳ در دسترس است
+        tvSimCount.text = getString(R.string.sim_count_fmt, subs.size).toDigits()
+
+        for ((index, sub) in subs.withIndex()) {
             val subTm: TelephonyManager? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 try {
                     telephonyManager.createForSubscriptionId(sub.subscriptionId)
@@ -1076,29 +1259,117 @@ class MainActivity : AppCompatActivity() {
             } else {
                 null
             }
-            val typeLabel = if (subTm != null) {
-                networkTypeInfo(currentNetworkType(subTm)).first
-            } else {
+
+            val root = layoutInflater.inflate(R.layout.item_sim_card, llSimList, false)
+            val tvTitle = root.findViewById<TextView>(R.id.tvSimTitle)
+            val tvBadge = root.findViewById<TextView>(R.id.tvSimBadge)
+            val tvCarrier = root.findViewById<TextView>(R.id.tvSimCarrier)
+            val tvDisplay = root.findViewById<TextView>(R.id.tvSimDisplay)
+            val tvNetType = root.findViewById<TextView>(R.id.tvSimNetType)
+            val tvSignal = root.findViewById<TextView>(R.id.tvSimSignal)
+            val tvMccMnc = root.findViewById<TextView>(R.id.tvSimMccMnc)
+            val tvSimRoaming = root.findViewById<TextView>(R.id.tvSimRoaming)
+            val tvSubId = root.findViewById<TextView>(R.id.tvSimSubId)
+            val btnInspect = root.findViewById<MaterialButton>(R.id.btnInspectSim)
+
+            val slotNumber = index + 1
+            val slotText = if (sub.simSlotIndex >= 0) sub.simSlotIndex.toString() else "—"
+            tvTitle.text =
+                getString(R.string.sim_card_title_fmt, slotNumber, slotText).toDigits()
+            tvBadge.text = slotNumber.toString().toDigits()
+            tvCarrier.text = sub.carrierName?.toString().orEmpty()
+                .ifBlank { getString(R.string.unknown_operator) }
+            tvDisplay.text = sub.displayName?.toString().orEmpty()
+                .ifBlank { "—" }
+
+            // مشخصات ثابت از TelephonyManager مخصوص همان سیم
+            var mccMnc = "—"
+            var roaming = "—"
+            if (subTm != null) {
+                try {
+                    val op = subTm.simOperator
+                    if (op.length >= 5) {
+                        mccMnc = op.substring(0, 3) + " – " + op.substring(3)
+                    }
+                } catch (t: Throwable) {
+                }
+                try {
+                    roaming = getString(
+                        if (subTm.isNetworkRoaming) R.string.roaming_on else R.string.roaming_off
+                    )
+                } catch (t: Throwable) {
+                }
+            }
+            tvMccMnc.text = mccMnc.toDigits()
+            tvSimRoaming.text = roaming
+            tvSubId.text = sub.subscriptionId.toString().toDigits()
+
+            btnInspect.setOnClickListener {
+                inspectSubId =
+                    if (inspectSubId == sub.subscriptionId) null else sub.subscriptionId
+                updateInspectButtons()
+                refreshCellInfo()
+                updateNetworkType()
+            }
+
+            llSimList.addView(root)
+            simHolders.add(
+                SimCardHolder(sub, subTm, root, tvNetType, tvSignal, tvSimRoaming, btnInspect)
+            )
+        }
+        updateInspectButtons()
+        refreshSimLiveValues()
+    }
+
+    /** مقادیر زندهٔ هر سیم: نوع شبکه و قدرت سیگنال همان سابسکریپشن */
+    private fun refreshSimLiveValues() {
+        if (!hasPhonePermission()) return
+        for (holder in simHolders) {
+            val tm = holder.subTm ?: continue
+            // نوع شبکهٔ همان سیم
+            val typeLabel = try {
+                networkTypeInfo(currentNetworkType(tm)).first
+            } catch (t: Throwable) {
                 "—"
             }
-            val carrier = sub.carrierName?.toString().orEmpty()
-                .ifBlank { getString(R.string.unknown_operator) }
-            // clamp: simSlotIndex طبق مستندات ممکن است -1 باشد (سابسکریپشن غیرفعال/ریموت)
-            val slotText = if (sub.simSlotIndex >= 0) sub.simSlotIndex.toString() else "—"
-            val slotNumber = (sub.simSlotIndex.coerceAtLeast(0)) + 1
-            llSimList.addView(
-                makeInfoRow(
-                    getString(R.string.sim_row_fmt, slotNumber, slotText, carrier, typeLabel)
-                        .toPersianDigits()
-                )
+            holder.tvNetType.text = typeLabel
+
+            // سیگنال همان سیم — API 26 به بالا مستقیم؛ پایین‌تر «—»
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val dbm = try {
+                    SignalDbmExtractor.extract(tm.signalStrength)
+                } catch (t: Throwable) {
+                    null
+                }
+                holder.tvSignal.text =
+                    dbm?.let { formatDbmOrNull(it) } ?: getString(R.string.sim_signal_na)
+            } else {
+                holder.tvSignal.text = getString(R.string.sim_signal_na)
+            }
+        }
+        updateInspectButtons()
+    }
+
+    private fun updateInspectButtons() {
+        for (holder in simHolders) {
+            val selected = inspectSubId != null &&
+                holder.sub.subscriptionId == inspectSubId
+            holder.btnInspect.text = getString(
+                if (selected) R.string.btn_inspect_default else R.string.btn_inspect_sim
             )
+        }
+        val activeIdx = simHolders.indexOfFirst { it.sub.subscriptionId == inspectSubId }
+        tvInspectStatus.text = if (activeIdx >= 0) {
+            getString(R.string.inspect_active_fmt, activeIdx + 1)
+        } else {
+            ""
         }
     }
 
     private fun makeInfoRow(text: String): TextView {
         val tv = TextView(this)
         tv.text = text
-        tv.textSize = 14f
+        tv.textSize = 13f
         tv.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
         tv.setPadding(0, dp(6), 0, dp(6))
         return tv
@@ -1106,7 +1377,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    // ───────────────────────── فاصله تا دکل (GPS + OpenCelliD) ─────────────────────────
+    // ───────────────────────── فاصله تا دکل (خودکار) ─────────────────────────
 
     private fun onLocateTowerClicked() {
         if (!hasLocationPermission()) {
@@ -1121,21 +1392,16 @@ class MainActivity : AppCompatActivity() {
         computeTowerDistance()
     }
 
-    /**
-     * محاسبهٔ خودکار فاصله: فقط وقتی دکل متصل عوض شود (یا اولین بار) اجرا می‌شود
-     * تا از درخواست‌های مکرر GPS و شبکه جلوگیری شود.
-     */
     private fun maybeAutoDistance() {
         if (!hasLocationPermission()) return
         if (distanceJob?.isActive == true) return
-        val cell = numericServing ?: return
-        val key = (cell.radio ?: "?") + "-" + (cell.cid ?: 0) + "-" + (cell.lac ?: 0)
+        val cell = lastServingSpec ?: return
+        val key = cell.cellKey
         if (key == lastAutoDistCellKey) return
         lastAutoDistCellKey = key
         computeTowerDistance()
     }
 
-    /** نتیجهٔ تعیین موقعیت دکل از یکی از ارائه‌دهنده‌ها */
     private data class TowerFix(
         val lat: Double,
         val lon: Double,
@@ -1143,12 +1409,6 @@ class MainActivity : AppCompatActivity() {
         val accuracyMeters: Int? = null
     )
 
-    /**
-     * زنجیرهٔ تعیین موقعیت دکل — کاملاً خودکار و بدون نیاز به کلید:
-     * ۱) OpenCelliD اگر کاربر قبلاً کلید ذخیره کرده باشد (دقیق‌ترین)
-     * ۲) Mylnikov (رایگان و بدون کلید)
-     * ۳) اگر هیچ‌کدام نشد: تخمین تقریبی از قدرت سیگنال (همیشه در دسترس)
-     */
     private fun computeTowerDistance() {
         if (distanceJob?.isActive == true) return
 
@@ -1169,7 +1429,7 @@ class MainActivity : AppCompatActivity() {
                 tvGpsCoords.text = formatCoords(location.latitude, location.longitude)
                 tvTowerDistance.text = getString(R.string.msg_querying_db)
 
-                val cell = numericServing
+                val cell = lastServingSpec
                 val fix = withContext(Dispatchers.IO) { resolveTowerFix(cell) }
 
                 if (fix != null) {
@@ -1188,8 +1448,13 @@ class MainActivity : AppCompatActivity() {
                         tvDistanceAcc.text =
                             getString(R.string.distance_acc_fmt, formatDistance(it.toDouble()))
                     }
+                    // نقشه + قطب‌نما
+                    towerMap.setTower(fix.lat, fix.lon, getString(R.string.map_tower))
+                    towerMap.setUser(
+                        location.latitude, location.longitude, getString(R.string.map_user)
+                    )
+                    compassView.setTargetBearing(bearing)
                 } else {
-                    // ارائه‌دهندهٔ ۳: تخمین بر پایهٔ تضعیف سیگنال (بدون هیچ سرویس بیرونی)
                     val estimate = estimateDistanceFromSignal()
                     if (estimate != null) {
                         lastDistanceText = estimate
@@ -1202,61 +1467,59 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: TimeoutCancellationException) {
-                // تایم‌اوت ۳۰ ثانیه‌ای GPS نباید بی‌صدا رد شود — پیام واضح نمایش داده می‌شود
                 tvTowerDistance.text =
                     getString(R.string.err_generic, getString(R.string.err_gps_failed))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 tvTowerDistance.text =
-                    getString(R.string.err_generic, e.message ?: "خطای ناشناخته")
+                    getString(R.string.err_generic, e.message ?: getString(R.string.unknown))
             }
         }
     }
 
-    /** تلاش به ترتیب در ارائه‌دهنده‌های موقعیت دکل؛ null یعنی هیچ‌کدام جواب نداد */
-    private fun resolveTowerFix(cell: NumericServing?): TowerFix? {
-        if (cell == null) return null
+    /** زنجیرهٔ ارائه‌دهنده‌های موقعیت دکل — کاملاً خودکار و بدون کلید */
+    private fun resolveTowerFix(spec: CellSpec?): TowerFix? {
+        if (spec == null) return null
+        val radio = radioOf(spec)
+        val cid = spec.cid?.takeIf { it in 0..Int.MAX_VALUE }?.toInt()
+        val lac = spec.tac
 
-        // ۱) OpenCelliD (در صورت وجود کلید ذخیره‌شده)
-        val key = prefs.getString(KEY_OPENCELLID, null)
-        if (!key.isNullOrBlank() && cell.radio != "cdma") {
-            val url = buildOpenCelliDUrl(cell, key)
-            if (url != null) {
-                try {
-                    val (lat, lon) = fetchTowerLocation(url)
-                    return TowerFix(lat, lon, R.string.src_opencellid)
-                } catch (ce: CancellationException) {
-                    throw ce
-                } catch (t: Throwable) {
-                    // ارائه‌دهندهٔ بعدی
-                }
-            }
-        }
-
-        // ۲) Mylnikov — رایگان و بدون کلید (برای 5G پشتیبانی نمی‌شود)
-        if (cell.radio != "nr" && cell.radio != "cdma" &&
-            cell.cid != null && cell.lac != null && !cell.mcc.isNullOrBlank() && !cell.mnc.isNullOrBlank()
+        // ۱) Mylnikov — رایگان و بدون کلید
+        if (radio != "nr" && radio != "cdma" &&
+            cid != null && lac != null &&
+            !spec.mcc.isNullOrBlank() && !spec.mnc.isNullOrBlank()
         ) {
             try {
-                return fetchMylnikov(cell)
+                return fetchMylnikov(spec.mcc!!, spec.mnc!!, lac, cid)
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
-                // ارائه‌دهندهٔ بعدی (تخمین سیگنال)
+                // ارائه‌دهندهٔ بعدی
             }
         }
-
         return null
     }
 
-    /** فراخوانی سرویس رایگان Mylnikov (بدون کلید) و برگرداندن موقعیت دکل */
-    private fun fetchMylnikov(cell: NumericServing): TowerFix {
+    private fun radioOf(spec: CellSpec): String = when (spec.rat) {
+        "LTE" -> "lte"
+        "NR" -> "nr"
+        "UMTS" -> "umts"
+        "CDMA" -> "cdma"
+        else -> "gsm"
+    }
+
+    private fun fetchMylnikov(
+        mcc: String,
+        mnc: String,
+        lac: Int,
+        cid: Int
+    ): TowerFix {
         val url = "https://api.mylnikov.org/geolocation/get?v=1.1" +
-            "&mcc=" + cell.mcc +
-            "&mnc=" + cell.mnc +
-            "&lac=" + cell.lac +
-            "&cellid=" + cell.cid
+            "&mcc=" + mcc +
+            "&mnc=" + mnc +
+            "&lac=" + lac +
+            "&cellid=" + cid
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 8_000
         connection.readTimeout = 8_000
@@ -1265,7 +1528,7 @@ class MainActivity : AppCompatActivity() {
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
             if (code !in 200..299) {
-                throw IOException("پاسخ سرور Mylnikov: $code")
+                throw IOException("Mylnikov: $code")
             }
             val obj = JSONObject(body)
             if (obj.optInt("result", -1) == 1) {
@@ -1278,33 +1541,27 @@ class MainActivity : AppCompatActivity() {
                     accuracy
                 )
             }
-            throw IOException("این دکل در دیتابیس Mylnikov ثبت نشده است")
+            throw IOException("Mylnikov: not found")
         } finally {
             connection.disconnect()
         }
     }
 
-    /**
-     * تخمین فاصله از قدرت سیگنال با مدل تضعیف لگاریتمی (مسیر آزاد):
-     * FSPL(dB) = ۲۰log₁₀(d_km) + ۲۰log₁₀(f_MHz) + ۳۲٫۴۴
-     * ثابت‌های کالیبراسیون شهری (توان مؤثر پرتاب + اتلاف نفوذ) طوری انتخاب شده‌اند
-     * که برای شبکه‌های ایران مقادیر واقع‌بینانه بدهد. خروجی «تخمین تقریبی» است.
-     */
+    /** تخمین فاصله از قدرت سیگنال (مدل تضعیف لگاریتمی) */
     private fun estimateDistanceFromSignal(): String? {
-        val gen = lastServingGeneration
-        val perRe = gen == "4G" || gen == "5G"   // RSRP به‌ازای هر المان منبع است
+        val gen = lastServingSpec?.generation
+        val perRe = gen == "4G" || gen == "5G"
         val dbm = if (perRe) (lastRsrpVal ?: lastDbm ?: return null) else (lastDbm ?: return null)
         if (dbm >= 0 || dbm < -140) return null
 
         val freqMHz = when (gen) {
             "5G" -> 3500.0
-            "4G" -> 1800.0
+            "4G" -> lastServingSpec?.freqMHz ?: 1800.0
             "3G" -> 2100.0
             else -> 900.0
         }
-        // توان مؤثر (EIRP) در گیرنده: LTE/NR هر المان منبع ≈ ۲۷dBm؛ GSM/UMTS کل کانال ≈ ۵۸dBm
         val eirp = if (perRe) 27.0 else 58.0
-        val fspl = eirp - dbm - 25.0   // ۲۵dB اتلاف شهری/نفوذ ساختمان
+        val fspl = eirp - dbm - 25.0
         if (fspl <= 10.0) return formatDistance(40.0)
 
         val km = Math.pow(10.0, (fspl - 20.0 * Math.log10(freqMHz) - 32.44) / 20.0)
@@ -1330,68 +1587,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-    /**
-     * آدرس OpenCelliD: برای LTE مقدار TAC به‌عنوان پارامتر lac و CID به‌عنوان cellid ارسال می‌شود.
-     */
-    private fun buildOpenCelliDUrl(cell: NumericServing, key: String): String? {
-        val cid = cell.cid ?: return null
-        val lac = cell.lac ?: return null
-        val mcc = cell.mcc ?: return null
-        val mnc = cell.mnc ?: return null
-        // فیلد radio دقت جستجو در OpenCelliD را بالا می‌برد
-        // توجه: OpenCelliD برای UMTS کلید «umts» می‌خواهد، نه «wcdma»
-        val radio = when (cell.radio) {
-            "lte" -> "lte"
-            "nr" -> "nr"
-            "wcdma", "umts" -> "umts"
-            else -> "gsm"
-        }
-        return "https://opencellid.org/cell/get" +
-            "?token=" + key +
-            "&mcc=" + mcc +
-            "&mnc=" + mnc +
-            "&lac=" + lac +
-            "&cellid=" + cid +
-            "&radio=" + radio
-    }
-
-    /** فراخوانی شبکه‌ای OpenCelliD (روی Dispatchers.IO اجرا می‌شود) و برگرداندن lat/lon دکل */
-    private fun fetchTowerLocation(url: String): Pair<Double, Double> {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 10_000
-        connection.readTimeout = 10_000
-        try {
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            if (code !in 200..299) {
-                // اگر سرور پیام خطای خوانا فرستاده، همان را نشان می‌دهیم (مثلاً کلید نامعتبر)
-                val serverMessage = runCatching {
-                    val obj = JSONObject(body)
-                    listOf("message", "error", "description")
-                        .firstOrNull { obj.optString(it).isNotEmpty() }
-                        ?.let { k -> obj.optString(k) }
-                }.getOrNull()
-                throw IOException(serverMessage ?: ("کد پاسخ سرور: $code"))
-            }
-            val obj = JSONObject(body)
-            if (obj.has("lat") && obj.has("lon")) {
-                return obj.getDouble("lat") to obj.getDouble("lon")
-            }
-            // کلیدهای خطای احتمالی OpenCelliD: message / error / description
-            val message = listOf("message", "error", "description")
-                .firstOrNull { obj.optString(it, "").isNotEmpty() }
-                ?.let { k -> obj.optString(k) }
-                ?: ""
-            throw IOException(
-                if (message.isNotEmpty()) message else "پاسخ نامعتبر از OpenCelliD"
-            )
-        } finally {
-            connection.disconnect()
-        }
-    }
-
-    /** فرمول هاورساین: فاصلهٔ کروی بین دو نقطه برحسب متر */
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val earthRadius = 6_371_000.0
         val dLat = Math.toRadians(lat2 - lat1)
@@ -1403,7 +1598,6 @@ class MainActivity : AppCompatActivity() {
         return earthRadius * c
     }
 
-    /** آزیموت (یال) از کاربر به دکل برحسب درجه از شمال جغرافیایی */
     private fun bearingDegrees(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val dLon = Math.toRadians(lon2 - lon1)
         val lat1Rad = Math.toRadians(lat1)
@@ -1413,96 +1607,40 @@ class MainActivity : AppCompatActivity() {
         return (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
     }
 
-    private fun bearingToPersianName(bearing: Double): String {
-        val names = arrayOf(
-            "شمال", "شمال‌شرقی", "شرقی", "جنوب‌شرقی",
-            "جنوب", "جنوب‌غربی", "غرب", "شمال‌غربی"
-        )
-        val index = Math.round(bearing / 45.0).toInt() % 8
-        return names[index]
+    private fun bearingName(bearing: Double): String {
+        val res = when (Math.round(bearing / 45.0).toInt() % 8) {
+            1 -> R.string.bearing_ne
+            2 -> R.string.bearing_e
+            3 -> R.string.bearing_se
+            4 -> R.string.bearing_s
+            5 -> R.string.bearing_sw
+            6 -> R.string.bearing_w
+            7 -> R.string.bearing_nw
+            else -> R.string.bearing_n
+        }
+        return getString(res)
     }
 
     private fun formatDistance(meters: Double): String {
         return if (meters < 1000.0) {
-            String.format(Locale.US, "%.0f", meters).toPersianDigits() + " متر"
+            formatNumber1f(meters) + " " + getString(R.string.unit_meters)
         } else {
-            String.format(Locale.US, "%.1f", meters / 1000.0)
-                .replace('.', '٫')
-                .toPersianDigits() + " کیلومتر"
+            formatNumber1f(meters / 1000.0) + " " + getString(R.string.unit_kilometers)
         }
     }
 
-    private fun formatBearing(bearing: Double): String {
-        val deg = String.format(Locale.US, "%.0f", bearing).toPersianDigits()
-        return bearingToPersianName(bearing) + " (" + deg + " درجه)"
-    }
+    private fun formatBearing(bearing: Double): String = getString(
+        R.string.bearing_fmt,
+        bearingName(bearing),
+        formatNumber1f(bearing),
+        getString(R.string.unit_degrees)
+    )
 
     private fun formatCoords(lat: Double, lon: Double): String =
-        String.format(Locale.US, "%.5f, %.5f", lat, lon).toPersianDigits()
+        String.format(Locale.US, "%.5f, %.5f", lat, lon).toDigits()
 
-    private fun saveApiKey() {
-        val key = etApiKey.text?.toString()?.trim().orEmpty()
-        if (key.isEmpty()) {
-            toast(getString(R.string.msg_key_empty))
-            return
-        }
-        prefs.edit().putString(KEY_OPENCELLID, key).apply()
-        toast(getString(R.string.msg_key_saved))
-    }
+    // ───────────────────────── ترافیک لحظه‌ای ─────────────────────────
 
-    /** باز/بسته کردن بخش «تنظیمات پیشرفته» (کلید اختیاری OpenCelliD) */
-    private fun toggleAdvanced() {
-        val show = llAdvanced.visibility != View.VISIBLE
-        llAdvanced.visibility = if (show) View.VISIBLE else View.GONE
-        tvAdvancedToggle.text = getString(
-            if (show) R.string.advanced_toggle_hide else R.string.advanced_toggle_show
-        )
-    }
-
-    /** تازه‌سازی همهٔ بخش‌ها (کشیدن به پایین) */
-    private fun refreshAll() {
-        refreshTelephonyInfo()
-        refreshDualSim()
-        refreshCellInfo()
-        updateNetworkType()
-        refreshDeviceInfo()
-        refreshHistory()
-    }
-
-    /** اشتراک‌گذاری گزارش کامل شبکه به‌صورت متن */
-    private fun shareDiagnostics() {
-        val sb = StringBuilder(getString(R.string.share_header))
-        sb.append(getString(R.string.label_operator)).append(": ")
-            .append(tvOperatorName.text).append('\n')
-        sb.append(getString(R.string.label_rat)).append(": ")
-            .append(chipNetwork.text).append('\n')
-        sb.append(getString(R.string.label_dbm)).append(": ")
-            .append(tvDbm.text).append('\n')
-        if (tvRsrp.text.toString() != "—") {
-            sb.append(getString(R.string.label_rsrp)).append(": ")
-                .append(tvRsrp.text).append('\n')
-        }
-        sb.append(getString(R.string.label_cid)).append(": ")
-            .append(tvServingCid.text).append('\n')
-        sb.append(getString(R.string.label_distance)).append(": ")
-            .append(tvTowerDistance.text).append('\n')
-        if (tvTowerBearing.text.toString() != "—") {
-            sb.append(getString(R.string.label_bearing)).append(": ")
-                .append(tvTowerBearing.text).append('\n')
-        }
-        lastSpeedSummary?.let {
-            sb.append(getString(R.string.card_speed_title)).append(": ").append(it).append('\n')
-        }
-        sb.append('\n').append(getString(R.string.app_name))
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, sb.toString())
-        }
-        startActivity(Intent.createChooser(intent, getString(R.string.share_via)))
-    }
-
-    /** سرعت لحظه‌ای ارسال/دریافت اینترنت گوشی از TrafficStats (هر ثانیه) */
     private fun startLiveTraffic() {
         liveTrafficJob?.cancel()
         liveTrafficJob = lifecycleScope.launch(Dispatchers.Main) {
@@ -1522,6 +1660,8 @@ class MainActivity : AppCompatActivity() {
                     val upKbps = (tx - lastTx).coerceAtLeast(0L) * 8.0 / 1e3 / dtS
                     tvLiveDown.text = formatLiveSpeed(downKbps)
                     tvLiveUp.text = formatLiveSpeed(upKbps)
+                    SignalState.downKbps = downKbps
+                    SignalState.upKbps = upKbps
                 }
                 lastRx = rx
                 lastTx = tx
@@ -1530,12 +1670,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** قالب سرعت لحظه‌ای: کیلوبیت یا مگابیت بر ثانیه */
     private fun formatLiveSpeed(kbps: Double): String {
         return if (kbps >= 1000.0) {
             formatNumber1f(kbps / 1000.0) + " Mbps"
         } else {
-            String.format(Locale.US, "%.0f", kbps).toPersianDigits() + " Kbps"
+            formatNumber1f(kbps) + " Kbps"
         }
     }
 
@@ -1564,35 +1703,39 @@ class MainActivity : AppCompatActivity() {
         speedTestJob = lifecycleScope.launch(Dispatchers.Main) {
             SpeedTester.runTest(object : SpeedTester.Listener {
                 override fun onPingProgress(sample: Int, total: Int, pingMs: Double, jitterMs: Double) {
-                    tvPing.text = formatMs(pingMs) +
-                        " (جیتر: " + formatNumber1f(jitterMs) + ")"
+                    tvPing.text = getString(R.string.unit_ms_fmt, formatNumber1f(pingMs)) +
+                        " (" + getString(R.string.ping_jitter) + ": " +
+                        formatNumber1f(jitterMs) + ")"
                     progressSpeed.setProgressCompat(sample * 20 / total, true)
                 }
 
                 override fun onDownloadProgress(percent: Int, mbps: Double) {
-                    tvDownload.text = formatMbps(mbps)
+                    tvDownload.text = getString(R.string.unit_mbps_fmt, formatNumber2f(mbps))
                     progressSpeed.setProgressCompat(20 + percent * 50 / 100, true)
                 }
 
                 override fun onUploadProgress(percent: Int, mbps: Double) {
-                    tvUpload.text = formatMbps(mbps)
+                    tvUpload.text = getString(R.string.unit_mbps_fmt, formatNumber2f(mbps))
                     progressSpeed.setProgressCompat(70 + percent * 30 / 100, true)
                 }
 
                 override fun onFinished(result: SpeedTester.SpeedResult) {
                     progressSpeed.setProgressCompat(100, true)
-                    tvPing.text = formatMs(result.pingMs) +
-                        " (جیتر: " + formatNumber1f(result.jitterMs) + ")"
-                    tvDownload.text = formatMbps(result.downloadMbps)
-                    tvUpload.text = formatMbps(result.uploadMbps)
-                    lastSpeedSummary =
-                        "↓ " + formatNumber1f(result.downloadMbps) + " / ↑ " +
-                        formatNumber1f(result.uploadMbps) + " Mbps — پینگ " +
+                    tvPing.text = getString(R.string.unit_ms_fmt, formatNumber1f(result.pingMs)) +
+                        " (" + getString(R.string.ping_jitter) + ": " +
+                        formatNumber1f(result.jitterMs) + ")"
+                    tvDownload.text = getString(R.string.unit_mbps_fmt, formatNumber2f(result.downloadMbps))
+                    tvUpload.text = getString(R.string.unit_mbps_fmt, formatNumber2f(result.uploadMbps))
+                    lastPingMs = result.pingMs
+                    lastJitterMs = result.jitterMs
+                    lastDownMbps = result.downloadMbps
+                    lastUpMbps = result.uploadMbps
+                    lastSpeedSummary = "↓ " + formatNumber1f(result.downloadMbps) + " / ↑ " +
+                        formatNumber1f(result.uploadMbps) + " Mbps — " +
                         formatNumber1f(result.pingMs) + "ms"
                     tvSpeedStatus.text = getString(R.string.speed_status_done)
                     finishSpeedUi()
-                    // ذخیرهٔ خودکار نتیجه در تاریخچهٔ محلی؛ روی اسکوپ مستقل از اکتیویتی
-                    // اجرا می‌شود تا اگر کاربر بلافاصله برنامه را بست، نتیجه از دست نرود.
+                    updateQualityScore(lastDbm)
                     appScope.launch {
                         historyDb.insert(result)
                         withContext(Dispatchers.Main) { refreshHistory() }
@@ -1620,7 +1763,6 @@ class MainActivity : AppCompatActivity() {
     @Suppress("DEPRECATION")
     private fun isNetworkOnline(): Boolean {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        // ConnectivityManager.activeNetwork از API ۲۳ در دسترس است
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val network = cm.activeNetwork ?: return false
             val capabilities = cm.getNetworkCapabilities(network) ?: return false
@@ -1635,10 +1777,9 @@ class MainActivity : AppCompatActivity() {
     private fun refreshHistory() {
         lifecycleScope.launch {
             val entries = withContext(Dispatchers.IO) { historyDb.recent(30) }
-            // نمودار از قدیم به جدید رسم می‌شود؛ تاریخچه از جدید به قدیم برمی‌گردد
             historyChart.setData(entries.asReversed())
             tvHistoryCount.text =
-                getString(R.string.history_count_fmt, entries.size).toPersianDigits()
+                getString(R.string.history_count_fmt, entries.size).toDigits()
             if (entries.isEmpty()) {
                 tvHistoryEmpty.visibility = View.VISIBLE
                 llHistoryList.removeAllViews()
@@ -1647,13 +1788,12 @@ class MainActivity : AppCompatActivity() {
             tvHistoryEmpty.visibility = View.GONE
             llHistoryList.removeAllViews()
             for (entry in entries.take(8)) {
-                val date = formatHistoryTimestamp(entry.timestampMs)
                 llHistoryList.addView(
                     makeInfoRow(
-                        date +
-                            " — دانلود " + formatNumber1f(entry.downloadMbps) +
-                            " • آپلود " + formatNumber1f(entry.uploadMbps) +
-                            " • پینگ " + formatNumber1f(entry.pingMs) + "ms"
+                        JalaliDate.formatTimestamp(entry.timestampMs) +
+                            " — ↓ " + formatNumber1f(entry.downloadMbps) +
+                            " • ↑ " + formatNumber1f(entry.uploadMbps) +
+                            " • " + formatNumber1f(entry.pingMs) + "ms"
                     )
                 )
             }
@@ -1670,167 +1810,274 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * تاریخ نتایج با تقویم هجری شمسی (جلالی) برای کاربر فارسی‌زبان.
-     * تبدیل با الگوریتم استاندارد jalaali (پورت Kotlin، بدون وابستگی) انجام می‌شود
-     * تا روی همهٔ نسخه‌های اندروید (API 21+) کار کند؛ خروجی «۱۴۰۳/۰۵/۱۲ ۱۴:۳۰» است.
-     */
-    private fun formatHistoryTimestamp(ms: Long): String {
-        val gregorian = java.util.Calendar.getInstance()
-        gregorian.timeInMillis = ms
-        val j = jalaliFromGregorian(
-            gregorian.get(java.util.Calendar.YEAR),
-            gregorian.get(java.util.Calendar.MONTH) + 1,
-            gregorian.get(java.util.Calendar.DAY_OF_MONTH)
-        )
-        return String.format(
-            Locale.US,
-            "%04d/%02d/%02d %02d:%02d",
-            j[0], j[1], j[2],
-            gregorian.get(java.util.Calendar.HOUR_OF_DAY),
-            gregorian.get(java.util.Calendar.MINUTE)
-        ).toPersianDigits()
-    }
+    // ───────────────────────── ابزارها: پینگ و DNS ─────────────────────────
 
-    /** گرفتن روز ژولینی از تاریخ میلادی (الگوریتم jalaali) */
-    private fun gregorianToJdn(gy: Int, gm: Int, gd: Int): Int {
-        fun div(a: Int, b: Int) = a / b
-        var d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) +
-            div(153 * ((gm + 9) % 12) + 2, 5) + gd - 34840408
-        d -= div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) - 752
-        return d
-    }
-
-    /** گرفتن سال میلادی از روز ژولینی (فقط سال لازم است) */
-    private fun gregorianYearFromJdn(jdn: Int): Int {
-        fun div(a: Int, b: Int) = a / b
-        var j = 4 * jdn + 139361631
-        j += div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908
-        val i = div(j % 1461, 4) * 5 + 308
-        val gm = div(i, 153) % 12 + 1
-        return div(j, 1461) - 100100 + div(8 - gm, 6)
-    }
-
-    /** کبیسه‌بینی و نقطهٔ نوین سال جلالی (الگوریتم jalaali): خروجی [کبیسه، سال میلادی، روز اسفند/مارس] */
-    private fun jalCal(jy: Int): IntArray {
-        fun div(a: Int, b: Int) = a / b
-        val breaks = intArrayOf(
-            -61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210,
-            1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178
-        )
-        val gy = jy + 621
-        var leapJ = -14
-        var jp = breaks[0]
-        var jump = 0
-        for (i in 1 until breaks.size) {
-            val jm = breaks[i]
-            jump = jm - jp
-            if (jy < jm) break
-            leapJ += div(jump, 33) * 8 + div(jump % 33, 4)
-            jp = jm
+    private fun togglePingTest() {
+        val job = pingJob
+        if (job != null && job.isActive) {
+            job.cancel()
+            pingJob = null
+            resetPingUi()
+            return
         }
-        var n = jy - jp
-        leapJ += div(n, 33) * 8 + div(n % 33 + 3, 4)
-        if (jump % 33 == 4 && jump - n == 4) leapJ += 1
-        val leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150
-        val march = 20 + leapJ - leapG
-        if (jump - n < 6) n = n - jump + div(jump + 4, 33) * 33
-        var leap = ((n + 1) % 33 - 1) % 4
-        if (leap == -1) leap = 4
-        return intArrayOf(leap, gy, march)
-    }
+        if (!isNetworkOnline()) {
+            tvPingStatus.text = getString(R.string.speed_no_internet)
+            return
+        }
+        val target = selectedPingTarget()
+        btnRunPing.text = getString(R.string.btn_ping_stop)
+        tvPingStatus.text = getString(R.string.ping_status_running)
+        tvPingMin.text = "—"
+        tvPingAvg.text = "—"
+        tvPingMax.text = "—"
+        tvPingJitter.text = "—"
+        tvPingLoss.text = "—"
+        tvPingPackets.text = "—"
+        tvPingMethod.text = ""
 
-    /** تبدیل تاریخ میلادی به [سال، ماه، روز] هجری شمسی */
-    private fun jalaliFromGregorian(gy: Int, gm: Int, gd: Int): IntArray {
-        fun div(a: Int, b: Int) = a / b
-        val jdn = gregorianToJdn(gy, gm, gd)
-        val gYear = gregorianYearFromJdn(jdn)
-        var jy = gYear - 621
-        val r = jalCal(jy)
-        val jdn1f = gregorianToJdn(r[1], 3, r[2])
-        var k = jdn - jdn1f
-        if (k >= 0) {
-            if (k <= 185) {
-                // ۶ ماه اول سال (۳۱ روزه)
-                return intArrayOf(jy, 1 + k / 31, k % 31 + 1)
+        val totalSteps = 8
+        pingJob = lifecycleScope.launch(Dispatchers.Main) {
+            val result = PingTester.run(target.host, totalSteps) { _, _, rtt ->
+                if (rtt != null) {
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        tvPingAvg.text = formatMsShort(rtt)
+                    }
+                }
+                Unit
             }
-            k -= 186
-        } else {
-            // سال جلالی قبل
-            jy -= 1
-            k += 179
-            if (r[0] == 1) k += 1
+            btnRunPing.text = getString(R.string.btn_ping_run)
+            pingJob = null
+            if (result == null) {
+                tvPingStatus.text = getString(R.string.err_ping_failed)
+                return@launch
+            }
+            tvPingMin.text = formatMsShort(result.minMs)
+            tvPingAvg.text = formatMsShort(result.avgMs)
+            tvPingMax.text = formatMsShort(result.maxMs)
+            tvPingJitter.text = formatMsShort(result.jitterMs)
+            tvPingLoss.text = getString(R.string.loss_fmt, formatNumber1f(result.lossPercent))
+            tvPingPackets.text = getString(
+                R.string.ping_packets_fmt,
+                result.received.toString().toDigits(),
+                result.sent.toString().toDigits()
+            )
+            tvPingMethod.text = getString(
+                if (result.usedIcmp) R.string.ping_method_icmp else R.string.ping_method_http
+            )
+            tvPingStatus.text = getString(R.string.speed_status_done)
+            lastPingMs = result.avgMs
+            lastJitterMs = result.jitterMs
+            updateQualityScore(lastDbm)
         }
-        // ۶ ماه دوم سال (۳۰ روزه)
-        return intArrayOf(jy, 7 + k / 30, k % 30 + 1)
     }
 
-    // ───────────────────────── اطلاعات دستگاه ─────────────────────────
+    private fun resetPingUi() {
+        btnRunPing.text = getString(R.string.btn_ping_run)
+        tvPingStatus.text = getString(R.string.ping_status_idle)
+    }
+
+    private fun toggleDnsTest() {
+        val job = dnsJob
+        if (job != null && job.isActive) {
+            job.cancel()
+            dnsJob = null
+            tvDnsStatus.text = getString(R.string.dns_status_idle)
+            return
+        }
+        if (!isNetworkOnline()) {
+            tvDnsStatus.text = getString(R.string.speed_no_internet)
+            return
+        }
+        btnRunDns.text = getString(R.string.btn_ping_stop)
+        tvDnsStatus.text = getString(R.string.dns_status_running)
+        llDnsRows.removeAllViews()
+
+        dnsJob = lifecycleScope.launch(Dispatchers.Main) {
+            DnsTester.run { _, _, row ->
+                lifecycleScope.launch(Dispatchers.Main) {
+                    addDnsRow(row)
+                }
+            }
+            btnRunDns.text = getString(R.string.btn_dns_run)
+            tvDnsStatus.text = getString(R.string.speed_status_done)
+            dnsJob = null
+        }
+    }
+
+    private fun addDnsRow(row: DnsTester.Row) {
+        val value = row.ms?.let { formatMsShort(it) } ?: getString(R.string.dns_fail)
+        llDnsRows.addView(
+            makeInfoRow(getString(R.string.dns_row_fmt, row.host, value))
+        )
+    }
+
+    private fun formatMsShort(ms: Double): String =
+        getString(R.string.unit_ms_fmt, formatNumber1f(ms))
+
+    // ───────────────────────── خروجی‌ها (CSV / PDF) ─────────────────────────
+
+    private fun exportSignalCsv() {
+        lifecycleScope.launch {
+            val file = withContext(Dispatchers.IO) { CsvExporter.exportSignalLog(this@MainActivity) }
+            if (file == null) {
+                toast(getString(R.string.export_none))
+            } else {
+                shareFile(file, "text/csv")
+                toast(getString(R.string.export_done))
+            }
+        }
+    }
+
+    private fun exportSpeedCsv() {
+        lifecycleScope.launch {
+            val entries = withContext(Dispatchers.IO) { historyDb.recent(500) }
+            val file = withContext(Dispatchers.IO) {
+                CsvExporter.exportSpeedHistory(this@MainActivity, entries)
+            }
+            if (file == null) {
+                toast(getString(R.string.export_none))
+            } else {
+                shareFile(file, "text/csv")
+                toast(getString(R.string.export_done))
+            }
+        }
+    }
+
+    private fun exportPdfReport() {
+        lifecycleScope.launch {
+            toast(getString(R.string.report_building))
+            try {
+                val data = buildPdfData()
+                val file = withContext(Dispatchers.IO) {
+                    PdfReport.build(this@MainActivity, data)
+                }
+                shareFile(file, "application/pdf")
+                toast(getString(R.string.export_done))
+            } catch (e: Exception) {
+                toast(getString(R.string.export_failed, e.message ?: getString(R.string.unknown)))
+            }
+        }
+    }
+
+    private fun buildPdfData(): PdfReport.Data {
+        val entries = historyDb.recent(10)
+        val historyLines = entries.map {
+            JalaliDate.formatTimestamp(it.timestampMs) +
+                " — ↓ " + formatNumber1f(it.downloadMbps) +
+                " • ↑ " + formatNumber1f(it.uploadMbps) +
+                " • " + formatNumber1f(it.pingMs) + "ms"
+        }
+        val simSummary = if (simHolders.isEmpty()) {
+            getString(R.string.sim_none)
+        } else {
+            simHolders.joinToString("\n") { h ->
+                (h.sub.carrierName?.toString() ?: "?") +
+                    " — " + h.tvNetType.text + " — " + h.tvSignal.text
+            }
+        }
+        val score = NetworkQuality.score(
+            lastDbm, lastRsrpVal, lastPingMs, lastJitterMs, lastDownMbps, lastUpMbps
+        )
+        val data = PdfReport.Data(
+            operator = tvOperatorName.text.toString(),
+            networkType = chipNetwork.text.toString(),
+            dbm = tvDbm.text.toString(),
+            rsrp = tvRsrp.text.toString(),
+            rsrq = tvRsrq.text.toString(),
+            sinr = tvSnr.text.toString(),
+            band = tvServingBand.text.toString(),
+            frequency = tvServingFreq.text.toString(),
+            cid = tvServingCid.text.toString(),
+            enbId = tvServingEnb.text.toString(),
+            pci = tvServingPci.text.toString(),
+            tac = tvServingTac.text.toString(),
+            taDistance = tvTaDistance.text.toString(),
+            distance = tvTowerDistance.text.toString(),
+            bearing = tvTowerBearing.text.toString(),
+            gpsCoords = tvGpsCoords.text.toString(),
+            qualityScore = score.toString().toDigits() + " / 100 — " +
+                NetworkQuality.label(this, score),
+            speedSummary = lastSpeedSummary,
+            signalStats = tvSigStats.text.toString(),
+            simSummary = simSummary,
+            historyLines = historyLines
+        )
+        return data
+    }
+
+    private fun shareFile(file: File, mime: String) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                this, packageName + ".fileprovider", file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, getString(R.string.share_via)))
+        } catch (t: Throwable) {
+            toast(getString(R.string.toast_no_app))
+        }
+    }
+
+    /** اشتراک‌گذاری گزارش متنی سریع از تولبار */
+    private fun shareDiagnostics() {
+        val sb = StringBuilder(getString(R.string.share_header))
+        sb.append(getString(R.string.label_operator)).append(": ")
+            .append(tvOperatorName.text).append('\n')
+        sb.append(getString(R.string.label_rat)).append(": ")
+            .append(chipNetwork.text).append('\n')
+        sb.append(getString(R.string.label_dbm)).append(": ")
+            .append(tvDbm.text).append('\n')
+        sb.append(getString(R.string.label_band)).append(": ")
+            .append(tvServingBand.text).append('\n')
+        sb.append(getString(R.string.label_cid)).append(": ")
+            .append(tvServingCid.text).append('\n')
+        sb.append(getString(R.string.label_distance)).append(": ")
+            .append(tvTowerDistance.text).append('\n')
+        sb.append(getString(R.string.score_title)).append(": ")
+            .append(tvQualityScore.text).append('\n')
+        if (tvTowerBearing.text.toString() != "—") {
+            sb.append(getString(R.string.label_bearing)).append(": ")
+                .append(tvTowerBearing.text).append('\n')
+        }
+        lastSpeedSummary?.let {
+            sb.append(getString(R.string.card_speed_title)).append(": ").append(it).append('\n')
+        }
+        sb.append('\n').append(getString(R.string.app_name))
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, sb.toString())
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.share_via)))
+    }
+
+    // ───────────────────── اطلاعات دستگاه (ویجت) ─────────────────────
 
     private fun refreshDeviceInfo() {
-        val manufacturer = Build.MANUFACTURER.replaceFirstChar { it.uppercase(Locale.US) }
-        tvDeviceModel.text = (manufacturer + " " + Build.MODEL).toPersianDigits()
-        tvDeviceOs.text =
-            ("اندروید " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")").toPersianDigits()
-        val metrics = resources.displayMetrics
-        tvDeviceScreen.text =
-            (metrics.widthPixels.toString() + " × " + metrics.heightPixels + " پیکسل — چگالی " +
-                String.format(Locale.US, "%.1f", metrics.density) + "x").toPersianDigits()
-        tvDeviceBattery.text = batteryText()
-        tvDeviceUptime.text = formatUptime(SystemClock.elapsedRealtime())
-        tvDeviceCpu.text = Build.SUPPORTED_ABIS.firstOrNull()
-            ?.uppercase(Locale.US)
-            ?.toPersianDigits()
-            ?: "—"
+        // ویجت صفحهٔ اصلی را تازه نگه می‌دارد
+        SignalWidgetProvider.pushUpdate(applicationContext)
     }
 
-    /** درصد باتری و وضعیت شارژ از broadcast سیستمی (بدون ثبت گیرنده) */
-    private fun batteryText(): String {
-        return try {
-            val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-                ?: return "—"
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level < 0 || scale <= 0) {
-                "—"
-            } else {
-                val percent = (level * 100) / scale
-                val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                    status == BatteryManager.BATTERY_STATUS_FULL
-                percent.toPersianDigits() + "٪ — " +
-                    getString(if (charging) R.string.battery_charging else R.string.battery_discharging)
-            }
-        } catch (e: Exception) {
-            "—"
+    // ───────────────────────── قطب‌نما ─────────────────────────
+
+    private fun registerCompass() {
+        val manager = sensorManager ?: return
+        val sensor = manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) ?: return
+        try {
+            manager.registerListener(sensorListener, sensor, SensorManager.SENSOR_DELAY_UI)
+        } catch (t: Throwable) {
         }
     }
 
-    private fun formatUptime(elapsedMs: Long): String {
-        val totalMinutes = elapsedMs / 60_000
-        val days = totalMinutes / (24 * 60)
-        val hours = (totalMinutes % (24 * 60)) / 60
-        val minutes = totalMinutes % 60
-        return when {
-            days > 0 -> (days.toString() + " روز و " + hours + " ساعت").toPersianDigits()
-            hours > 0 -> (hours.toString() + " ساعت و " + minutes + " دقیقه").toPersianDigits()
-            else -> (minutes.toString() + " دقیقه").toPersianDigits()
+    private fun unregisterCompass() {
+        try {
+            sensorManager?.unregisterListener(sensorListener)
+        } catch (t: Throwable) {
         }
     }
-
-    // ───────────────────────── ابزارهای قالب‌بندی ─────────────────────────
-
-    private fun formatMs(ms: Double): String = formatNumber1f(ms) + " میلی‌ثانیه"
-
-    private fun formatNumber1f(value: Double): String =
-        String.format(Locale.US, "%.1f", value)
-            .replace('.', '٫')
-            .toPersianDigits()
-
-    private fun formatMbps(mbps: Double): String =
-        String.format(Locale.US, "%.2f", mbps)
-            .replace('.', '٫')
-            .toPersianDigits() + " مگابیت بر ثانیه"
 
     private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

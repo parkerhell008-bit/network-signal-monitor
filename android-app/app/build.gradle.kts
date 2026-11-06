@@ -12,8 +12,8 @@ android {
         // پشتیبانی از اندروید ۵ به بالا (پوشش «همهٔ گوشی‌ها»)
         minSdk = 21
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
     }
 
     buildTypes {
@@ -46,4 +46,6 @@ dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    // نقشهٔ OpenStreetMap بدون نیاز به Google Play Services (گروه ۴)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 }
