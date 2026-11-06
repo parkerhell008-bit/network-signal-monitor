@@ -541,7 +541,8 @@ class MainActivity : AppCompatActivity() {
         // ۲) کشیدن به پایین — با تشخیص درست اسکرول صفحهٔ فعال
         swipeRefresh.setOnRefreshListener { refreshAll() }
         swipeRefresh.setOnChildScrollUpCallback { _, _ ->
-            (activeScrollView ?: pageDashboard).canScrollVertically(-1) > 0
+            // canScrollVertically(-1) یعنی «می‌شود به بالا اسکرول کرد؟»
+            (activeScrollView ?: pageDashboard).canScrollVertically(-1)
         }
     }
 

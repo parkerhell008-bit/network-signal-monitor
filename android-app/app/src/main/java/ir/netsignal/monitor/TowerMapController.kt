@@ -21,7 +21,6 @@ class TowerMapController(private val map: MapView) {
         initialized = true
         try {
             map.setTileSource(TileSourceFactory.MAPNIK)
-            map.setMultiUseControls(true)
             map.controller.setZoom(15.5)
             // مرکز پیش‌فرض: تهران تا نقشهٔ خالی زشت نباشد
             map.controller.setCenter(GeoPoint(35.6892, 51.3890))

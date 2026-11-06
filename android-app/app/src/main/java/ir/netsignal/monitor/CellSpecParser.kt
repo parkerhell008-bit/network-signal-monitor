@@ -85,7 +85,14 @@ object CellSpecParser {
                 is CellInfoCdma -> parseCdma(info.cellIdentity, info.cellSignalStrength, info.isRegistered)
                 else -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is CellInfoNr) {
-                        parseNr(info.cellIdentity, info.cellSignalStrength, info.isRegistered, fallbackOperator)
+                        // getCellIdentity() در CellInfoNr نوع پایه برمی‌گرداند؛ کست صریح لازم است
+                        val id = info.cellIdentity as? CellIdentityNr
+                        val sig = info.cellSignalStrength as? CellSignalStrengthNr
+                        if (id != null && sig != null) {
+                            parseNr(id, sig, info.isRegistered, fallbackOperator)
+                        } else {
+                            null
+                        }
                     } else {
                         null
                     }
@@ -194,7 +201,7 @@ object CellSpecParser {
             rsrq = null,
             sinr = null,
             rssi = null,
-            rscp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) valid(sig.rscp) else null,
+            rscp = null,
             timingAdvance = null,
             mcc = mcc,
             mnc = mnc,
